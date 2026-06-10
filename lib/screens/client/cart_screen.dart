@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../core/ui_helpers.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -44,7 +45,18 @@ class CartScreen extends StatelessWidget {
                               Text("\$${item.product.price.toStringAsFixed(0)} COP"),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => cart.removeFromCart(item.product),
+                            onPressed: () async {
+                              debugPrint('CartScreen: Click en eliminar producto - ${item.product.name}');
+                              final confirm = await ConfirmationHelper.showDeleteConfirmation(
+                                context: context,
+                                title: "¿Quitar del carrito?",
+                                message: "¿Deseas eliminar este producto de tu carrito?",
+                              );
+                              debugPrint('CartScreen: Resultado confirmación: $confirm');
+                              if (confirm) {
+                                cart.removeFromCart(item.product);
+                              }
+                            },
                           ),
                         ),
                       );

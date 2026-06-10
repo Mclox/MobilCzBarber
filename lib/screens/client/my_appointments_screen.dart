@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/app_theme.dart';
+import '../../core/ui_helpers.dart';
 import '../../providers/auth_provider.dart';
 import 'modify_appointment_screen.dart';
 
@@ -433,48 +434,27 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     }
   }
 
-  void _cancelAppointment(Map<String, dynamic> appointment) {
-    showDialog(
+  void _cancelAppointment(Map<String, dynamic> appointment) async {
+    debugPrint('MyAppointmentsScreen: Intentando cancelar cita - ${appointment['service']}');
+    final confirm = await ConfirmationHelper.showDeleteConfirmation(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning, color: Colors.orange),
-            SizedBox(width: 12),
-            Text('Cancelar Cita'),
-          ],
-        ),
-        content: Text(
-          '¿Estás seguro de que deseas cancelar tu cita de ${appointment['service']} '
+      title: 'Cancelar Cita',
+      message: '¿Estás seguro de que deseas cancelar tu cita de ${appointment['service']} '
           'el ${(appointment['date'] as DateTime).day}/${(appointment['date'] as DateTime).month}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                appointment['status'] = 'cancelled';
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cita cancelada'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Sí, Cancelar'),
-          ),
-        ],
-      ),
     );
+    debugPrint('MyAppointmentsScreen: Resultado confirmación: $confirm');
+
+    if (confirm) {
+      setState(() {
+        appointment['status'] = 'cancelled';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cita cancelada'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _rateAppointment(Map<String, dynamic> appointment) {

@@ -1,7 +1,7 @@
 class Api {
   // URL base del backend
   // Cambia esto por tu IP o dominio
-  static const String baseUrl = "http://192.168.0.10:3000/api";
+  static const String baseUrl = "http://localhost:4000/api";
 
   // AUTH
   static const String login = "$baseUrl/auth/login";

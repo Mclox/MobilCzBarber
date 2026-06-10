@@ -154,7 +154,7 @@ class ProfileTabWidget extends StatelessWidget {
               onTap: () {
                 showAboutDialog(
                   context: context,
-                  applicationName: 'BarberSite',
+                  applicationName: 'CzBarber',
                   applicationVersion: '1.0.0',
                   applicationIcon: const Icon(Icons.content_cut),
                 );

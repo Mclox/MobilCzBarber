@@ -1,43 +1,47 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart';
-import '../mock/mock_users.dart';
+import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
+  final AuthService _authService = AuthService();
   User? _user;
-
-  /// 👇 copia mutable de los mocks
-  final List<User> _users = List.from(mockUsers);
+  bool _isLoading = false;
 
   User? get user => _user;
   bool get isLoggedIn => _user != null;
+  bool get isLoading => _isLoading;
 
-  /// 🔐 LOGIN REAL
-  User? login(String email, String password) {
-    try {
-      final user = _users.firstWhere(
-        (u) => u.email == email && u.password == password,
-      );
+  /// 🔐 LOGIN CONECTADO A NODE.JS
+  Future<User?> login(String email, String password) async {
+    _isLoading = true;
+    notifyListeners(); // Avisamos a la UI que está cargando
 
-      _user = user;
-      notifyListeners();
-      return user;
-    } catch (e) {
-      return null;
+    final loggedUser = await _authService.login(email, password);
+    
+    if (loggedUser != null) {
+      _user = loggedUser;
     }
+    
+    _isLoading = false;
+    notifyListeners(); // Avisamos a la UI que terminó de cargar
+    return loggedUser;
   }
 
-  /// 📝 REGISTER REAL
-  bool register(User newUser) {
-    final exists = _users.any((u) => u.email == newUser.email);
-    if (exists) return false;
-
-    _users.add(newUser);
+  /// 📝 REGISTER CONECTADO A NODE.JS
+  Future<bool> register(User newUser) async {
+    _isLoading = true;
     notifyListeners();
-    return true;
+
+    final success = await _authService.register(newUser);
+
+    _isLoading = false;
+    notifyListeners();
+    return success;
   }
 
   /// 🚪 LOGOUT
-  void logout() {
+  Future<void> logout() async {
+    await _authService.logout();
     _user = null;
     notifyListeners();
   }

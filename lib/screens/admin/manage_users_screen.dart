@@ -7,6 +7,7 @@ import '../../models/user.dart';
 import '../../widgets/custom_input.dart';
 import '../../widgets/custom_button.dart';
 import '../../core/app_theme.dart';
+import '../../core/ui_helpers.dart';
 
 class ManageUsersScreen extends StatefulWidget {
   const ManageUsersScreen({super.key});
@@ -98,8 +99,13 @@ class _ManageUsersScreenState extends State<ManageUsersScreen> {
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {
-                                await userService.deleteUser(u.id!);
-                                loadUsers();
+                                debugPrint('ManageUsersScreen: Click en eliminar usuario - ${u.name}');
+                                final confirm = await ConfirmationHelper.showDeleteConfirmation(context: context);
+                                debugPrint('ManageUsersScreen: Resultado confirmación: $confirm');
+                                if (confirm) {
+                                  await userService.deleteUser(u.id!);
+                                  loadUsers();
+                                }
                               },
                             ),
                           ],

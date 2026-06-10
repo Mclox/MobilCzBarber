@@ -1,72 +1,24 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
-import '../mock/mock_products.dart';
+import '../services/product_service.dart';
 
 class ProductProvider extends ChangeNotifier {
-  List<Product> _products = [];
-  bool _isLoading = false;
+  final ProductService _service = ProductService();
+  List<dynamic> products = [];
+  bool isLoading = false;
 
-  // GETTERS
-  List<Product> get products => _products;
-  bool get isLoading => _isLoading;
-
-  // ===============================
-  // CARGAR TODOS LOS PRODUCTOS
-  // ===============================
   Future<void> loadProducts() async {
-    _isLoading = true;
+    isLoading = true;
     notifyListeners();
-
-    await Future.delayed(const Duration(milliseconds: 500));
-    _products = List<Product>.from(mockProducts);
-
-    _isLoading = false;
+    products = await _service.getAll();
+    isLoading = false;
     notifyListeners();
   }
 
-  // ===============================
-  // CARGAR POR CATEGORÍA
-  // ===============================
-  Future<void> loadProductsByCategory(String category) async {
-    _isLoading = true;
-    notifyListeners();
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    _products = mockProducts
-        .where((p) => p.category == category)
-        .toList();
-
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  // ===============================
-  // CREAR PRODUCTO (ADMIN)
-  // ===============================
-  void createProduct(Product product) {
-    mockProducts.add(product);
-    _products = List<Product>.from(mockProducts);
-    notifyListeners();
-  }
-
-  // ===============================
-  // ACTUALIZAR PRODUCTO
-  // ===============================
-  void updateProduct(Product product) {
-    final index = mockProducts.indexWhere((p) => p.id == product.id);
-    if (index != -1) {
-      mockProducts[index] = product;
-      _products = List<Product>.from(mockProducts);
-      notifyListeners();
+  Future<bool> createProduct(Map<String, dynamic> data) async {
+    final success = await _service.create(data);
+    if (success) {
+      await loadProducts();
     }
-  }
-
-  // ===============================
-  // ELIMINAR PRODUCTO
-  // ===============================
-  void deleteProduct(int id) {
-    mockProducts.removeWhere((p) => p.id == id);
-    _products = List<Product>.from(mockProducts);
-    notifyListeners();
+    return success;
   }
 }

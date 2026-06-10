@@ -10,15 +10,17 @@ import 'providers/barber_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/barber_availability_provider.dart';
 import 'providers/barber_appointment_provider.dart'; // 👈 SI EXISTE
+import 'providers/dashboard_provider.dart';
+import 'providers/service_provider.dart';
 
 import 'core/app_theme.dart'; // Add import
 
 void main() {
-  runApp(const BarberSiteApp());
+  runApp(const CzBarberApp());
 }
 
-class BarberSiteApp extends StatelessWidget {
-  const BarberSiteApp({super.key});
+class CzBarberApp extends StatelessWidget {
+  const CzBarberApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +35,9 @@ class BarberSiteApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
         ChangeNotifierProvider(create: (_) => BarberProvider()),
+        ChangeNotifierProvider<DashboardProvider>(create: (_) => DashboardProvider()),
+        ChangeNotifierProvider(create: (_) => ServiceProvider()),
+
 
         /// 💈 BARBERO
         ChangeNotifierProvider(create: (_) => BarberAvailabilityProvider()),
@@ -41,7 +46,7 @@ class BarberSiteApp extends StatelessWidget {
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
-        title: 'BarberSite',
+        title: 'CzBarber',
         routerConfig: appRouter,
         theme: AppTheme.lightTheme, // Use custom theme
       ),

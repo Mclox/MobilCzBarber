@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/barber_appointment_provider.dart';
-import '../../mock/mock_barber_clients.dart';
-import '../../mock/mock_services.dart';
 import '../../widgets/loading_widget.dart';
-import '../../models/barber_appointment.dart';
-import '../../models/service.dart';
 import '../../core/app_theme.dart';
-
+import '../../core/ui_helpers.dart';
 
 class EmployeeAgendaScreen extends StatefulWidget {
   const EmployeeAgendaScreen({super.key});
@@ -26,25 +22,26 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
   }
 
   void _loadAppointments() {
-    final provider =
-        Provider.of<BarberAppointmentProvider>(context, listen: false);
-    provider.loadAppointments(1, selectedDate);
+    // Llamamos al provider para que cargue los datos reales de la BD
+    Provider.of<BarberAppointmentProvider>(context, listen: false).loadAppointments();
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<BarberAppointmentProvider>(context);
+    // Ahora 'appointments' contiene los datos de tu SQL Server
     final appointments = provider.appointments;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: const Text("Agenda del Día"),
         backgroundColor: AppTheme.primary,
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.primary,
-        child: const Icon(Icons.add),
         onPressed: _openAddAppointmentForm,
+        child: const Icon(Icons.add),
       ),
       body: Column(
         children: [
@@ -66,31 +63,23 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
                       itemCount: appointments.length,
                       itemBuilder: (context, index) {
                         final a = appointments[index];
-                        final client = mockBarberClients
-                            .firstWhere((c) => c.id == a.clientId);
+                        // Usamos los campos que vienen del JSON del backend
                         return Card(
-                          margin: const EdgeInsets.symmetric(
-                              horizontal: 15, vertical: 8),
+                          margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                           child: ListTile(
                             leading: const Icon(Icons.person),
-                            title: Text(client.name),
+                            title: Text(a['servicio_nombre'] ?? 'Servicio'),
                             subtitle: Text(
-                                "Hora: ${a.hour}\nServicio: ${a.service}\nEstado: ${a.status}"),
+                                "Hora: ${a['hora_inicio']}\nCliente: ${a['cliente_nombre'] ?? 'N/A'}\nEstado: ${a['estado']}"),
                             isThreeLine: true,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                  onPressed: () => _openEditAppointmentForm(a),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () {
-                                    provider.deleteAppointment(a.id);
-                                  },
-                                ),
-                              ],
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                final confirm = await ConfirmationHelper.showDeleteConfirmation(context: context);
+                                if (confirm) {
+                                  provider.deleteAppointment(a['id_cita']);
+                                }
+                              },
                             ),
                           ),
                         );
@@ -142,21 +131,13 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
 
   void _openAddAppointmentForm() => _openAppointmentForm();
 
-  void _openEditAppointmentForm(BarberAppointment appointment) =>
-      _openAppointmentForm(appointment: appointment);
-
-  void _openAppointmentForm({BarberAppointment? appointment}) {
-    int? selectedClientId = appointment?.clientId;
-    Service? selectedService = appointment != null
-        ? mockServices.firstWhere((s) => s.name == appointment.service)
-        : null;
-
-    TimeOfDay selectedTime = appointment != null
-        ? TimeOfDay(
-            hour: int.parse(appointment.hour.split(":")[0]),
-            minute: int.parse(appointment.hour.split(":")[1]),
-          )
-        : const TimeOfDay(hour: 9, minute: 0);
+  void _openAppointmentForm({dynamic appointment}) {
+    // Usamos variables locales para manejar el estado del formulario
+    int? selectedBarberId = appointment != null ? appointment['id_barbero'] : null;
+    int? selectedClientId = appointment != null ? appointment['id_cliente'] : null;
+    int? selectedServiceId = appointment != null ? appointment['id_servicio'] : null;
+    
+    final provider = Provider.of<BarberAppointmentProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -168,96 +149,51 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Cliente
                   DropdownButtonFormField<int>(
                     value: selectedClientId,
-                    items: mockBarberClients
-                        .map((c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text(c.name),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setModal(() => selectedClientId = value);
-                    },
-                    decoration:
-                        const InputDecoration(labelText: "Selecciona Cliente"),
-                  ),
-                  const SizedBox(height: 10),
-                  // Servicio
-                  DropdownButtonFormField<Service>(
-                    value: selectedService,
-                    items: mockServices
-                        .map((s) => DropdownMenuItem(
-                              value: s,
-                              child: Text(s.name),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      setModal(() => selectedService = value);
-                    },
-                    decoration:
-                        const InputDecoration(labelText: "Selecciona Servicio"),
-                  ),
-                  const SizedBox(height: 10),
-                  // Hora
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: selectedTime,
+                    decoration: const InputDecoration(labelText: "Selecciona Cliente"),
+                    items: provider.clientes.map<DropdownMenuItem<int>>((c) {
+                      final String displayName = c['nombre'] ?? c['name'] ?? c['nombre_completo'] ?? 'Sin nombre';
+                      return DropdownMenuItem(
+                        value: (c['id_cliente'] ?? 0) as int,
+                        child: Text(displayName),
                       );
-                      if (picked != null) setModal(() => selectedTime = picked);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "Hora: ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}",
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ),
+                    }).toList(),
+                    onChanged: (v) => setModal(() => selectedClientId = v),
+                  ),
+                  const SizedBox(height: 10),
+                  // DROPDOWN SERVICIOS REALES
+                  DropdownButtonFormField<int>(
+                    value: selectedServiceId,
+                    decoration: const InputDecoration(labelText: "Selecciona Servicio"),
+                    items: provider.servicios.map<DropdownMenuItem<int>>((s) => DropdownMenuItem(
+                      value: s['id_servicio'] as int,
+                      child: Text(s['nombre']),
+                    )).toList(),
+                    onChanged: (v) => setModal(() => selectedServiceId = v),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Cancelar"),
-              ),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
               ElevatedButton(
-                onPressed: () {
-                  if (selectedClientId == null || selectedService == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Completa todos los campos")),
-                    );
-                    return;
-                  }
+                onPressed: () async {
+                  if (selectedClientId == null || selectedServiceId == null) return;
 
-                  final provider =
-                      Provider.of<BarberAppointmentProvider>(context, listen: false);
+                  final data = {
+                    "id_cliente": selectedClientId,
+                    "id_barbero": 1, // ID fijo o selector
+                    "id_servicio": selectedServiceId,
+                    "fecha": selectedDate.toIso8601String(),
+                    "hora_inicio": "09:00",
+                    "hora_fin": "10:00"
+                  };
 
-                  final newAppointment = BarberAppointment(
-                    id: appointment?.id ?? DateTime.now().millisecondsSinceEpoch,
-                    clientId: selectedClientId!,
-                    barberId: 1,
-                    date: selectedDate,
-                    hour:
-                        "${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}",
-                    service: selectedService!.name,
-                    status: appointment?.status ?? "pending",
-                  );
-
-                  if (appointment == null) {
-                    provider.addAppointment(newAppointment);
-                  } else {
-                    provider.editAppointment(newAppointment);
-                  }
-
+                  await provider.createAppointment(data);
                   Navigator.pop(context);
                 },
-                child: Text(appointment == null ? "Agregar" : "Guardar"),
+                child: const Text("Guardar"),
               ),
             ],
           );

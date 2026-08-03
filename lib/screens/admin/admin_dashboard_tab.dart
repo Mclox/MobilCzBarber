@@ -50,6 +50,13 @@ class AdminDashboardTab extends StatelessWidget {
             route: "/admin/services",
             color: Colors.purple,
           ),
+          _menuCard(
+            context,
+            title: "Ventas",
+            icon: Icons.monetization_on,
+            route: "/admin/sales",
+            color: Colors.teal,
+          ),
         ],
       ),
     );

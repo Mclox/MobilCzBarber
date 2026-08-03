@@ -28,11 +28,11 @@ class _ManageServicesScreenState extends State<ManageServicesScreen> {
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primary,
-        child: const Icon(Icons.add),
-        onPressed: () => _openServiceForm(provider),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   backgroundColor: AppTheme.primary,
+      //   child: const Icon(Icons.add),
+      //   onPressed: () => _openServiceForm(provider),
+      // ),
       body: provider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(

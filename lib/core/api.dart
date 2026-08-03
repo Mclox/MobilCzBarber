@@ -37,6 +37,11 @@ class Api {
   static const String payments = "$baseUrl/payments";
   static String paymentById(int id) => "$payments/$id";
 
+  // SALES
+  static const String sales = "$baseUrl/sales";
+  static String saleById(int id) => "$sales/$id";
+  static String saleDetails(int id) => "$sales/$id/details";
+
   // DASHBOARD / KPI
   static const String dashboard = "$baseUrl/dashboard";
   static const String dashboardSales = "$baseUrl/dashboard/sales";

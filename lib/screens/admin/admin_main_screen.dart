@@ -3,6 +3,7 @@ import '../../core/app_theme.dart';
 import '../../widgets/profile_tab_widget.dart';
 import 'admin_dashboard_tab.dart';
 import 'admin_users_tab.dart';
+import 'admin_roles_tab.dart';
 import 'admin_services_tab.dart';
 
 /// Pantalla principal del Administrador con BottomNavigationBar
@@ -14,15 +15,16 @@ class AdminMainScreen extends StatefulWidget {
 }
 
 class _AdminMainScreenState extends State<AdminMainScreen> {
-  /// Índice de la pestaña activa (0-3)
+  /// Índice de la pestaña activa (0-4)
   int _currentIndex = 0;
 
   /// Lista de pantallas correspondientes a cada pestaña
   final List<Widget> _screens = [
     const AdminDashboardTab(),  // Índice 0: Dashboard
     const AdminUsersTab(),      // Índice 1: Usuarios
-    const AdminServicesTab(),   // Índice 2: Servicios
-    const ProfileTabWidget(     // Índice 3: Perfil
+    const AdminRolesTab(),      // Índice 2: Roles
+    const AdminServicesTab(),   // Índice 3: Servicios
+    const ProfileTabWidget(     // Índice 4: Perfil
       primaryColor: AppTheme.primary,
     ),
   ];
@@ -75,13 +77,19 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
             label: 'Usuarios',
           ),
           
-          // Pestaña 2: Servicios
+          // Pestaña 2: Roles
+          BottomNavigationBarItem(
+            icon: Icon(Icons.admin_panel_settings),
+            label: 'Roles',
+          ),
+          
+          // Pestaña 3: Servicios
           BottomNavigationBarItem(
             icon: Icon(Icons.business),
             label: 'Servicios',
           ),
           
-          // Pestaña 3: Perfil
+          // Pestaña 4: Perfil
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Perfil',

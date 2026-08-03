@@ -23,7 +23,7 @@ class AdminServicesTab extends StatelessWidget {
           _serviceCard(
             context,
             title: 'Servicios de Barbería',
-            description: 'Gestiona cortes, afeitados y tratamientos',
+            description: 'Visualiza los servicios ofrecidos',
             icon: Icons.content_cut,
             color: Colors.purple,
             route: '/admin/services',

@@ -273,4 +273,16 @@ class AppointmentService {
     final res = await _dio.delete('/appointments/$id', options: Options(headers: {"Authorization": "Bearer $token"}));
     return res.statusCode == 200;
   }
+
+  Future<bool> update(int id, Map<String, dynamic> data) async {
+    final token = await _getToken();
+    final res = await _dio.put('/appointments/$id', data: data, options: Options(headers: {"Authorization": "Bearer $token"}));
+    return res.statusCode == 200 || (res.data != null && res.data['success'] == true);
+  }
+
+  Future<bool> updateStatus(int id, String status) async {
+    final token = await _getToken();
+    final res = await _dio.put('/appointments/$id/status', data: {"estado": status}, options: Options(headers: {"Authorization": "Bearer $token"}));
+    return res.statusCode == 200 || (res.data != null && res.data['success'] == true);
+  }
 }

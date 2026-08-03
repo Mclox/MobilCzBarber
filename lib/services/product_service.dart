@@ -24,4 +24,19 @@ class ProductService {
         options: Options(headers: {"Authorization": "Bearer $token"}));
     return response.statusCode == 201;
   }
+
+  Future<bool> update(int id, Map<String, dynamic> data) async {
+    final token = await _getToken();
+    final response = await _dio.put('/products/$id', 
+        data: data, 
+        options: Options(headers: {"Authorization": "Bearer $token"}));
+    return response.statusCode == 200 || response.statusCode == 204 || (response.data != null && response.data['success'] == true);
+  }
+
+  Future<bool> delete(int id) async {
+    final token = await _getToken();
+    final response = await _dio.delete('/products/$id', 
+        options: Options(headers: {"Authorization": "Bearer $token"}));
+    return response.statusCode == 200 || response.statusCode == 204 || (response.data != null && response.data['success'] == true);
+  }
 }

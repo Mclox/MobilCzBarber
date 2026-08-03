@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -12,10 +11,13 @@ import '../screens/auth/register_screen.dart';
 // Admin Screens
 import '../screens/admin/admin_main_screen.dart';
 import '../screens/admin/manage_users_screen.dart';
+import '../screens/admin/manage_roles_screen.dart';
 import '../screens/admin/manage_products_screen.dart';
 import '../screens/admin/manage_appointments_screen.dart';
 import '../screens/admin/kpis_screen.dart';
 import '../screens/admin/manage_services_screen.dart';
+import '../screens/admin/manage_sales_screen.dart';
+import '../screens/admin/create_sale_screen.dart';
 
 
 // Client Screens
@@ -75,10 +77,13 @@ final GoRouter appRouter = GoRouter(
     /// ADMIN
     GoRoute(path: "/admin/dashboard", builder: (_, __) => const AdminMainScreen()),
     GoRoute(path: "/admin/users", builder: (_, __) => const ManageUsersScreen()),
+    GoRoute(path: "/admin/roles", builder: (_, __) => const ManageRolesScreen()),
     GoRoute(path: "/admin/products", builder: (_, __) => const ManageProductsScreen()),
     GoRoute(path: "/admin/appointments", builder: (_, __) => const ManageAppointmentsScreen()),
     GoRoute(path: "/admin/kpis", builder: (_, __) => const KpisScreen()),
     GoRoute(path: "/admin/services",builder: (_, __) => const ManageServicesScreen(),),
+    GoRoute(path: "/admin/sales", builder: (_, __) => const ManageSalesScreen()),
+    GoRoute(path: "/admin/sales/create", builder: (_, __) => const CreateSaleScreen()),
     
 
 

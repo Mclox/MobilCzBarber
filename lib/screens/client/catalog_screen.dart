@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/product_provider.dart';
 import '../../widgets/loading_widget.dart';
 import '../../core/app_theme.dart';
+import '../../core/api.dart';
 
 class CatalogScreen extends StatelessWidget {
   const CatalogScreen({super.key});
@@ -45,6 +46,24 @@ class CatalogScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final product = productProvider.products[index];
 
+                    // Resolver la imagen
+                    String resolvedUrl = 'https://via.placeholder.com/150';
+                    if (product.imageUrl.isNotEmpty) {
+                      if (product.imageUrl.startsWith('http')) {
+                        resolvedUrl = product.imageUrl;
+                      } else {
+                        String cleanPath = product.imageUrl.replaceAll('\\', '/');
+                        if (cleanPath.startsWith('/')) {
+                          cleanPath = cleanPath.substring(1);
+                        }
+                        String serverUrl = Api.baseUrl.replaceAll('/api', '');
+                        if (serverUrl.endsWith('/')) {
+                          serverUrl = serverUrl.substring(0, serverUrl.length - 1);
+                        }
+                        resolvedUrl = "$serverUrl/$cleanPath";
+                      }
+                    }
+
                     return Container(
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
@@ -59,19 +78,19 @@ class CatalogScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           // Imagen
-                          Expanded( // Use Expanded to fill space nicely
-                            child: Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(12)),
-                                image: DecorationImage(
-                                  image: NetworkImage(product.imageUrl),
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                          ),
+                           Expanded( // Use Expanded to fill space nicely
+                             child: Container(
+                               width: double.infinity,
+                               decoration: BoxDecoration(
+                                 borderRadius: const BorderRadius.vertical(
+                                     top: Radius.circular(12)),
+                                 image: DecorationImage(
+                                   image: NetworkImage(resolvedUrl),
+                                   fit: BoxFit.fitHeight,
+                                 ),
+                               ),
+                             ),
+                           ),
 
                           // Información del producto
                           Padding(

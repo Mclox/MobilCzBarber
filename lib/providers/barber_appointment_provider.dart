@@ -43,9 +43,15 @@ class BarberAppointmentProvider extends ChangeNotifier {
     }
   }
 
-  // Placeholder para edición
-  Future<void> editAppointment(Map<String, dynamic> data, int id) async {
-    // Si tu backend requiere un PUT, agrégalo al service y llámalo aquí
-    await loadAppointments();
+  Future<bool> editAppointment(int id, Map<String, dynamic> data) async {
+    final success = await _service.update(id, data);
+    if (success) await loadAppointments();
+    return success;
+  }
+
+  Future<bool> updateAppointmentStatus(int id, String status) async {
+    final success = await _service.updateStatus(id, status);
+    if (success) await loadAppointments();
+    return success;
   }
 }

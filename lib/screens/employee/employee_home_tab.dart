@@ -3,15 +3,53 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_theme.dart';
 
+import '../../providers/barber_appointment_provider.dart';
+import '../../widgets/profile_tab_widget.dart';
+
 /// Pestaña de Inicio para el Barbero/Empleado
-class EmployeeHomeTab extends StatelessWidget {
+class EmployeeHomeTab extends StatefulWidget {
   final Function(int)? onNavigateToTab;
   
   const EmployeeHomeTab({super.key, this.onNavigateToTab});
 
   @override
+  State<EmployeeHomeTab> createState() => _EmployeeHomeTabState();
+}
+
+class _EmployeeHomeTabState extends State<EmployeeHomeTab> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<BarberAppointmentProvider>(context, listen: false).loadAppointments();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final appointmentProvider = Provider.of<BarberAppointmentProvider>(context);
+
+    final appointments = appointmentProvider.appointments;
+    final isLoading = appointmentProvider.isLoading;
+
+    final today = DateTime.now();
+    final todayStr = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+
+    final todayAppointments = appointments.where((a) {
+      final fechaStr = a['fecha']?.toString() ?? '';
+      return fechaStr.startsWith(todayStr);
+    }).toList();
+
+    final completedAppointments = todayAppointments.where((a) {
+      final estado = a['estado']?.toString().toLowerCase() ?? '';
+      return estado == 'completada' || estado == 'completado' || estado == 'realizada' || estado == 'realizado' || estado == 'completed';
+    }).toList();
+
+    final String citasHoyVal = isLoading ? '...' : todayAppointments.length.toString();
+    final String completadasVal = isLoading ? '...' : completedAppointments.length.toString();
 
     return Scaffold(
       appBar: AppBar(
@@ -19,6 +57,15 @@ class EmployeeHomeTab extends StatelessWidget {
         backgroundColor: AppTheme.primary,
         foregroundColor: Colors.white,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, size: 20),
+            tooltip: 'Cerrar Sesión',
+            onPressed: () {
+              ProfileTabWidget.showLogoutConfirmationDialog(context, authProvider);
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -83,7 +130,7 @@ class EmployeeHomeTab extends StatelessWidget {
                     child: _statCard(
                       icon: Icons.calendar_today,
                       label: 'Citas Hoy',
-                      value: '5',
+                      value: citasHoyVal,
                       color: AppTheme.primary,
                     ),
                   ),
@@ -92,7 +139,7 @@ class EmployeeHomeTab extends StatelessWidget {
                     child: _statCard(
                       icon: Icons.check_circle,
                       label: 'Completadas',
-                      value: '3',
+                      value: completadasVal,
                       color: Colors.green,
                     ),
                   ),
@@ -118,8 +165,8 @@ class EmployeeHomeTab extends StatelessWidget {
                 subtitle: 'Revisa todas tus citas programadas',
                 onTap: () {
                   // Navegar a la pestaña de Agenda (índice 1)
-                  if (onNavigateToTab != null) {
-                    onNavigateToTab!(1);
+                  if (widget.onNavigateToTab != null) {
+                    widget.onNavigateToTab!(1);
                   }
                 },
               ),
@@ -133,8 +180,8 @@ class EmployeeHomeTab extends StatelessWidget {
                 subtitle: 'Ajusta tus horarios de trabajo',
                 onTap: () {
                   // Navegar a la pestaña de Disponibilidad (índice 2)
-                  if (onNavigateToTab != null) {
-                    onNavigateToTab!(2);
+                  if (widget.onNavigateToTab != null) {
+                    widget.onNavigateToTab!(2);
                   }
                 },
               ),

@@ -11,14 +11,28 @@ class ServiceService {
   }
 
   Future<List<dynamic>> getAll() async {
-    final token = await _getToken();
-    final res = await _dio.get('/services', options: Options(headers: {"Authorization": "Bearer $token"}));
-    return res.data['data'];
+    try {
+      final token = await _getToken();
+      final res = await _dio.get('/services', options: Options(headers: {"Authorization": "Bearer $token"}));
+      if (res.data is Map && res.data['data'] is List) {
+        return List<dynamic>.from(res.data['data']);
+      } else if (res.data is List) {
+        return List<dynamic>.from(res.data);
+      }
+    } catch (e) {
+      print("Error loading services in ServiceService: $e");
+    }
+    return [];
   }
 
   Future<bool> create(Map<String, dynamic> data) async {
-    final token = await _getToken();
-    final res = await _dio.post('/services', data: data, options: Options(headers: {"Authorization": "Bearer $token"}));
-    return res.statusCode == 201;
+    try {
+      final token = await _getToken();
+      final res = await _dio.post('/services', data: data, options: Options(headers: {"Authorization": "Bearer $token"}));
+      return res.statusCode == 201;
+    } catch (e) {
+      print("Error creating service in ServiceService: $e");
+      return false;
+    }
   }
 }

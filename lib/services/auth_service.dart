@@ -62,7 +62,7 @@ class AuthService {
         "nombre": newUser.name,
         "email": newUser.email,
         "password": newUser.password, // El backend lo encriptará con Bcrypt
-        "telefono": "", // Campo opcional
+        "telefono": newUser.phone ?? "",
       });
 
       return response.statusCode == 201 && response.data['success'] == true;

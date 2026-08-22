@@ -9,9 +9,15 @@ class ServiceProvider extends ChangeNotifier {
   Future<void> loadServices() async {
     isLoading = true;
     notifyListeners();
-    services = await _service.getAll();
-    isLoading = false;
-    notifyListeners();
+    try {
+      services = await _service.getAll();
+    } catch (e) {
+      debugPrint("Error loading services in ServiceProvider: $e");
+      services = [];
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> createService(Map<String, dynamic> data) async {

@@ -370,7 +370,7 @@ class _UserFormState extends State<_UserForm> {
               ],
               CustomInput(
                 controller: phoneCtrl,
-                label: "Teléfono",
+                label: "Teléfono *",
                 icon: Icons.phone,
               ),
               const SizedBox(height: 12),
@@ -462,9 +462,22 @@ class _UserFormState extends State<_UserForm> {
                         final phone = phoneCtrl.text.trim();
                         final address = addressCtrl.text.trim();
 
-                        if (name.isEmpty || doc.isEmpty || email.isEmpty) {
+                        if (name.isEmpty || doc.isEmpty || email.isEmpty || phone.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Nombre, Documento y Correo son obligatorios.")),
+                            const SnackBar(content: Text("Nombre, Documento, Correo y Teléfono son obligatorios.")),
+                          );
+                          return;
+                        }
+
+                        // Validar formato internacional (E.164)
+                        final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+                        final phoneRegex = RegExp(r'^\+[1-9]\d{9,14}$');
+                        if (!phoneRegex.hasMatch(cleanPhone)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("El teléfono debe estar en formato internacional (ej: +573001234567)."),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                           return;
                         }

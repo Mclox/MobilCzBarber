@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../core/app_theme.dart';
 
 /// Pantalla de configuración de la aplicación
@@ -15,8 +16,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _emailNotifications = true;
   bool _pushNotifications = true;
-  bool _darkModeEnabled = false;
-  String _language = 'Español';
 
   @override
   Widget build(BuildContext context) {
@@ -150,72 +149,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // Sección de Apariencia
           _buildSectionHeader('Apariencia'),
-          SwitchListTile(
-            secondary: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.dark_mode,
-                color: AppTheme.primary,
-              ),
-            ),
-            title: const Text(
-              'Modo oscuro',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text('Próximamente disponible'),
-            value: _darkModeEnabled,
-            activeColor: AppTheme.primary,
-            onChanged: null, // Deshabilitado por ahora
-          ),
-
-          ListTile(
-            leading: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.language,
-                color: AppTheme.primary,
-              ),
-            ),
-            title: const Text(
-              'Idioma',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(_language),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              _showLanguageDialog(context);
-            },
-          ),
-
-          const Divider(height: 32),
-
-          // Sección de Privacidad
-          _buildSectionHeader('Privacidad y Seguridad'),
-          _buildAccountTile(
-            icon: Icons.privacy_tip,
-            title: 'Política de privacidad',
-            subtitle: 'Ver términos y condiciones',
-            onTap: () {
-              _showPrivacyPolicy(context);
-            },
-          ),
-          _buildAccountTile(
-            icon: Icons.security,
-            title: 'Seguridad',
-            subtitle: 'Configuración de seguridad',
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Configuración de seguridad próximamente'),
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return SwitchListTile(
+                secondary: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.dark_mode,
+                    color: AppTheme.primary,
+                  ),
                 ),
+                title: const Text(
+                  'Modo oscuro',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Activar/desactivar el modo oscuro'),
+                value: themeProvider.isDarkMode,
+                activeColor: AppTheme.primary,
+                onChanged: (value) {
+                  themeProvider.toggleTheme();
+                },
               );
             },
           ),
@@ -393,68 +350,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLanguageDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Seleccionar idioma'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('Español'),
-              value: 'Español',
-              groupValue: _language,
-              activeColor: AppTheme.primary,
-              onChanged: (value) {
-                setState(() => _language = value!);
-                Navigator.pop(context);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('English'),
-              value: 'English',
-              groupValue: _language,
-              activeColor: AppTheme.primary,
-              onChanged: (value) {
-                setState(() => _language = value!);
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  void _showPrivacyPolicy(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Política de Privacidad'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'Esta es una aplicación de demostración.\n\n'
-            'En una aplicación real, aquí se mostraría la política de privacidad completa, '
-            'incluyendo información sobre cómo se recopilan, usan y protegen los datos del usuario.\n\n'
-            'Puntos importantes:\n'
-            '• Recopilación de datos\n'
-            '• Uso de la información\n'
-            '• Protección de datos\n'
-            '• Derechos del usuario\n'
-            '• Cookies y tecnologías similares\n'
-            '• Contacto',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _saveSettings(BuildContext context) {
     // TODO: Guardar configuraciones en SharedPreferences o backend

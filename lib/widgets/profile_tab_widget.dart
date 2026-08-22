@@ -247,21 +247,27 @@ class ProfileTabWidget extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
+    showLogoutConfirmationDialog(context, authProvider);
+  }
+
+  static void showLogoutConfirmationDialog(BuildContext context, AuthProvider authProvider) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Cerrar Sesión'),
         content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              authProvider.logout();
-              Navigator.pop(context);
-              context.go('/login');
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await authProvider.logout();
+              if (context.mounted) {
+                context.go('/login');
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,

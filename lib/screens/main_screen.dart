@@ -27,8 +27,8 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _screens = [
       HomeScreen(onNavigateToTab: _onItemTapped), // Índice 0: Inicio
-      const BookingScreen(),                       // Índice 1: Reservar
-      const MyAppointmentsScreen(),                // Índice 2: Mis Citas
+      BookingScreen(onBack: () => _onItemTapped(0)), // Índice 1: Reservar
+      MyAppointmentsScreen(onBack: () => _onItemTapped(0)), // Índice 2: Mis Citas
       const ProfileScreen(),                       // Índice 3: Perfil
     ];
   }

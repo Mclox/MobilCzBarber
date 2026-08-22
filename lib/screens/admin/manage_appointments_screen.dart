@@ -7,6 +7,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import '../../core/app_theme.dart';
 import '../../core/ui_helpers.dart';
 import '../../providers/barber_appointment_provider.dart';
+import '../client/booking_screen.dart';
+import '../../core/whatsapp_helper.dart';
 
 class ManageAppointmentsScreen extends StatefulWidget {
   const ManageAppointmentsScreen({super.key});
@@ -244,6 +246,62 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
           ),
         ),
         actions: [
+          ElevatedButton.icon(
+            icon: const Icon(Icons.chat, color: Colors.white, size: 16),
+            label: const Text("WhatsApp Cliente"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final clientPhone = (appointment['cliente_telefono'] ?? appointment['telefono_cliente'] ?? '').toString();
+              final clientName = (appointment['cliente_nombre'] ?? 'Cliente').toString();
+              final timeStr = (appointment['hora_inicio'] ?? '09:00').toString();
+              final barberName = (appointment['barbero_nombre'] ?? 'Barbero').toString();
+              final serviceName = servicesList.isNotEmpty ? servicesList.first : 'Servicio';
+
+              final message = WhatsAppHelper.build30MinClientReminder(
+                clientName: clientName,
+                timeStr: timeStr,
+                serviceName: serviceName,
+                barberName: barberName,
+              );
+
+              await WhatsAppHelper.openWhatsApp(
+                phone: clientPhone,
+                message: message,
+                context: context,
+              );
+            },
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.chat, color: Colors.white, size: 16),
+            label: const Text("WhatsApp Barbero"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final barberPhone = (appointment['barbero_telefono'] ?? appointment['telefono_barbero'] ?? '').toString();
+              final barberName = (appointment['barbero_nombre'] ?? 'Barbero').toString();
+              final clientName = (appointment['cliente_nombre'] ?? 'Cliente').toString();
+              final timeStr = (appointment['hora_inicio'] ?? '09:00').toString();
+              final serviceName = servicesList.isNotEmpty ? servicesList.first : 'Servicio';
+
+              final message = WhatsAppHelper.build30MinBarberReminder(
+                barberName: barberName,
+                clientName: clientName,
+                timeStr: timeStr,
+                serviceName: serviceName,
+              );
+
+              await WhatsAppHelper.openWhatsApp(
+                phone: barberPhone,
+                message: message,
+                context: context,
+              );
+            },
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("Cerrar"),
@@ -311,7 +369,17 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.primary,
-        onPressed: () => _openForm(provider),
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BookingScreen(),
+            ),
+          );
+          if (mounted) {
+            provider.loadAppointments();
+          }
+        },
         child: const Icon(Icons.add, color: Colors.white),
       ),
       body: Column(

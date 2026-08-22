@@ -4,6 +4,8 @@ import '../../providers/barber_appointment_provider.dart';
 import '../../widgets/loading_widget.dart';
 import '../../core/app_theme.dart';
 import '../../core/ui_helpers.dart';
+import '../client/booking_screen.dart';
+import '../../core/whatsapp_helper.dart';
 
 class EmployeeAgendaScreen extends StatefulWidget {
   const EmployeeAgendaScreen({super.key});
@@ -22,14 +24,155 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
   }
 
   void _loadAppointments() {
-    // Llamamos al provider para que cargue los datos reales de la BD
     Provider.of<BarberAppointmentProvider>(context, listen: false).loadAppointments();
+  }
+
+  Color _getStatusColor(String? estado) {
+    switch ((estado ?? '').toLowerCase()) {
+      case 'confirmada':
+      case 'confirmado':
+        return Colors.blue;
+      case 'en ejecución':
+      case 'en ejecucion':
+      case 'en_ejecucion':
+        return Colors.orange;
+      case 'completada':
+      case 'completado':
+        return Colors.green;
+      case 'cancelada':
+      case 'cancelado':
+        return Colors.red;
+      case 'pendiente':
+      default:
+        return Colors.amber;
+    }
+  }
+
+  void _showAppointmentDetails(BuildContext context, dynamic a, BarberAppointmentProvider provider) {
+    final estadoStr = (a['estado'] ?? 'pendiente').toString();
+    final clientPhone = (a['cliente_telefono'] ?? a['telefono_cliente'] ?? 'Sin teléfono').toString();
+    final clientName = (a['cliente_nombre'] ?? 'Cliente').toString();
+    final barberName = (a['barbero_nombre'] ?? 'Barbero').toString();
+    final serviceName = (a['servicio_nombre'] ?? 'Servicio').toString();
+    final fechaStr = (a['fecha'] ?? '').toString();
+    final horaStr = "${a['hora_inicio'] ?? ''} ${a['hora_fin'] != null ? '- ${a['hora_fin']}' : ''}";
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Cita #${a['id_cita']}",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primary),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(estadoStr).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      estadoStr.toUpperCase(),
+                      style: TextStyle(
+                        color: _getStatusColor(estadoStr),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 25),
+              _detailRow(Icons.person, "Cliente", clientName),
+              _detailRow(Icons.phone, "Teléfono", clientPhone),
+              _detailRow(Icons.content_cut, "Servicio", serviceName),
+              _detailRow(Icons.calendar_today, "Fecha", fechaStr),
+              _detailRow(Icons.access_time, "Horario", horaStr),
+              _detailRow(Icons.badge, "Barbero", barberName),
+              const SizedBox(height: 20),
+              const Text(
+                "Cambiar Estado de la Cita:",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _statusButton(context, a['id_cita'], 'pendiente', 'Pendiente', Colors.amber, provider),
+                  _statusButton(context, a['id_cita'], 'confirmada', 'Confirmada', Colors.blue, provider),
+                  _statusButton(context, a['id_cita'], 'en ejecución', 'En ejecución', Colors.orange, provider),
+                  _statusButton(context, a['id_cita'], 'completada', 'Completada', Colors.green, provider),
+                  _statusButton(context, a['id_cita'], 'cancelada', 'Cancelada', Colors.red, provider),
+                ],
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cerrar"),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _detailRow(IconData icon, String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.primary),
+          const SizedBox(width: 10),
+          Text("$title: ", style: const TextStyle(fontWeight: FontWeight.w600)),
+          Expanded(child: Text(value, style: const TextStyle(color: Colors.black87))),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusButton(
+    BuildContext context,
+    int appointmentId,
+    String statusKey,
+    String label,
+    Color color,
+    BarberAppointmentProvider provider,
+  ) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onPressed: () async {
+        await provider.updateAppointmentStatus(appointmentId, statusKey);
+        if (context.mounted) Navigator.pop(context);
+      },
+      child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<BarberAppointmentProvider>(context);
-    // Ahora 'appointments' contiene los datos de tu SQL Server
     final appointments = provider.appointments;
 
     return Scaffold(
@@ -40,7 +183,15 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppTheme.primary,
-        onPressed: _openAddAppointmentForm,
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BookingScreen(),
+            ),
+          );
+          _loadAppointments();
+        },
         child: const Icon(Icons.add),
       ),
       body: Column(
@@ -63,23 +214,90 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
                       itemCount: appointments.length,
                       itemBuilder: (context, index) {
                         final a = appointments[index];
-                        // Usamos los campos que vienen del JSON del backend
+                        final estadoStr = (a['estado'] ?? 'pendiente').toString();
                         return Card(
                           margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
                           child: ListTile(
-                            leading: const Icon(Icons.person),
-                            title: Text(a['servicio_nombre'] ?? 'Servicio'),
-                            subtitle: Text(
-                                "Hora: ${a['hora_inicio']}\nCliente: ${a['cliente_nombre'] ?? 'N/A'}\nEstado: ${a['estado']}"),
+                            onTap: () => _showAppointmentDetails(context, a, provider),
+                            leading: CircleAvatar(
+                              backgroundColor: _getStatusColor(estadoStr).withOpacity(0.2),
+                              child: Icon(Icons.content_cut, color: _getStatusColor(estadoStr)),
+                            ),
+                            title: Text(
+                              a['servicio_nombre'] ?? 'Servicio',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Hora: ${a['hora_inicio']} | Cliente: ${a['cliente_nombre'] ?? 'N/A'}"),
+                                const SizedBox(height: 2),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(estadoStr).withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    "Estado: $estadoStr",
+                                    style: TextStyle(
+                                      color: _getStatusColor(estadoStr),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                             isThreeLine: true,
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () async {
-                                final confirm = await ConfirmationHelper.showDeleteConfirmation(context: context);
-                                if (confirm) {
-                                  provider.deleteAppointment(a['id_cita']);
-                                }
-                              },
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.info_outline, color: AppTheme.primary),
+                                  tooltip: "Ver detalle",
+                                  onPressed: () => _showAppointmentDetails(context, a, provider),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.blue),
+                                  tooltip: "Editar cita",
+                                  onPressed: () => _openAppointmentForm(appointment: a),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
+                                  tooltip: "Enviar Recordatorio WhatsApp",
+                                  onPressed: () async {
+                                    final clientPhone = (a['cliente_telefono'] ?? a['telefono_cliente'] ?? '').toString();
+                                    final clientName = (a['cliente_nombre'] ?? 'Cliente').toString();
+                                    final barberName = (a['barbero_nombre'] ?? 'Barbero').toString();
+                                    final timeStr = (a['hora_inicio'] ?? '09:00').toString();
+                                    final serviceName = (a['servicio_nombre'] ?? 'Servicio').toString();
+
+                                    final message = WhatsAppHelper.build30MinClientReminder(
+                                      clientName: clientName,
+                                      timeStr: timeStr,
+                                      serviceName: serviceName,
+                                      barberName: barberName,
+                                    );
+
+                                    await WhatsAppHelper.openWhatsApp(
+                                      phone: clientPhone,
+                                      message: message,
+                                      context: context,
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  tooltip: "Eliminar",
+                                  onPressed: () async {
+                                    final confirm = await ConfirmationHelper.showDeleteConfirmation(context: context);
+                                    if (confirm) {
+                                      provider.deleteAppointment(a['id_cita']);
+                                    }
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -129,15 +347,49 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
     );
   }
 
-  void _openAddAppointmentForm() => _openAppointmentForm();
-
   void _openAppointmentForm({dynamic appointment}) {
-    // Usamos variables locales para manejar el estado del formulario
-    int? selectedBarberId = appointment != null ? appointment['id_barbero'] : null;
-    int? selectedClientId = appointment != null ? appointment['id_cliente'] : null;
-    int? selectedServiceId = appointment != null ? appointment['id_servicio'] : null;
-    
     final provider = Provider.of<BarberAppointmentProvider>(context, listen: false);
+
+    int? selectedClientId = appointment != null ? (appointment['id_cliente'] as int?) : null;
+    int? selectedServiceId = appointment != null ? (appointment['id_servicio'] as int?) : null;
+    int? selectedBarberId = appointment != null ? (appointment['id_barbero'] as int?) : null;
+
+    if (selectedClientId == null && provider.clientes.isNotEmpty) {
+      selectedClientId = provider.clientes.first['id_cliente'] as int?;
+    }
+    if (selectedServiceId == null && provider.servicios.isNotEmpty) {
+      selectedServiceId = provider.servicios.first['id_servicio'] as int?;
+    }
+    if (selectedBarberId == null && provider.barberos.isNotEmpty) {
+      selectedBarberId = (provider.barberos.first['id_barbero'] ?? provider.barberos.first['id_usuario']) as int?;
+    }
+
+    DateTime formDate = selectedDate;
+    if (appointment != null && appointment['fecha'] != null) {
+      try {
+        formDate = DateTime.parse(appointment['fecha'].toString());
+      } catch (_) {}
+    }
+
+    String selectedTime = (appointment != null && appointment['hora_inicio'] != null)
+        ? appointment['hora_inicio'].toString()
+        : '09:00';
+
+    String selectedEstado = (appointment != null && appointment['estado'] != null)
+        ? appointment['estado'].toString().toLowerCase()
+        : 'pendiente';
+
+    final List<String> availableTimes = [
+      "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
+      "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
+      "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+      "17:00", "17:30", "18:00", "18:30", "19:00"
+    ];
+
+    if (!availableTimes.contains(selectedTime)) {
+      availableTimes.add(selectedTime);
+      availableTimes.sort();
+    }
 
     showDialog(
       context: context,
@@ -148,12 +400,17 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 1. Selector de Cliente
                   DropdownButtonFormField<int>(
-                    value: selectedClientId,
-                    decoration: const InputDecoration(labelText: "Selecciona Cliente"),
+                    value: provider.clientes.any((c) => c['id_cliente'] == selectedClientId) ? selectedClientId : null,
+                    decoration: const InputDecoration(
+                      labelText: "Cliente",
+                      prefixIcon: Icon(Icons.person),
+                    ),
                     items: provider.clientes.map<DropdownMenuItem<int>>((c) {
-                      final String displayName = c['nombre'] ?? c['name'] ?? c['nombre_completo'] ?? 'Sin nombre';
+                      final String displayName = c['nombre_final'] ?? c['nombre'] ?? c['name'] ?? c['nombre_completo'] ?? 'Sin nombre';
                       return DropdownMenuItem(
                         value: (c['id_cliente'] ?? 0) as int,
                         child: Text(displayName),
@@ -161,37 +418,161 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
                     }).toList(),
                     onChanged: (v) => setModal(() => selectedClientId = v),
                   ),
-                  const SizedBox(height: 10),
-                  // DROPDOWN SERVICIOS REALES
+                  const SizedBox(height: 12),
+
+                  // 2. Selector de Servicio
                   DropdownButtonFormField<int>(
-                    value: selectedServiceId,
-                    decoration: const InputDecoration(labelText: "Selecciona Servicio"),
+                    value: provider.servicios.any((s) => s['id_servicio'] == selectedServiceId) ? selectedServiceId : null,
+                    decoration: const InputDecoration(
+                      labelText: "Servicio",
+                      prefixIcon: Icon(Icons.content_cut),
+                    ),
                     items: provider.servicios.map<DropdownMenuItem<int>>((s) => DropdownMenuItem(
                       value: s['id_servicio'] as int,
-                      child: Text(s['nombre']),
+                      child: Text("${s['nombre']} (\$${s['precio_neto'] ?? 0})"),
                     )).toList(),
                     onChanged: (v) => setModal(() => selectedServiceId = v),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 3. Selector de Barbero
+                  DropdownButtonFormField<int>(
+                    value: provider.barberos.any((b) => (b['id_barbero'] ?? b['id_usuario']) == selectedBarberId) ? selectedBarberId : null,
+                    decoration: const InputDecoration(
+                      labelText: "Barbero Asignado",
+                      prefixIcon: Icon(Icons.badge),
+                    ),
+                    items: provider.barberos.map<DropdownMenuItem<int>>((b) {
+                      final int bId = (b['id_barbero'] ?? b['id_usuario'] ?? 1) as int;
+                      return DropdownMenuItem(
+                        value: bId,
+                        child: Text(b['nombre'] ?? 'Barbero'),
+                      );
+                    }).toList(),
+                    onChanged: (v) => setModal(() => selectedBarberId = v),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 4. Selector de Fecha
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: formDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2035),
+                      );
+                      if (picked != null) {
+                        setModal(() => formDate = picked);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: "Fecha de la Cita",
+                        prefixIcon: Icon(Icons.calendar_today),
+                      ),
+                      child: Text(
+                        "${formDate.year}-${formDate.month.toString().padLeft(2, '0')}-${formDate.day.toString().padLeft(2, '0')}",
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 5. Selector de Hora Inicio
+                  DropdownButtonFormField<String>(
+                    value: selectedTime,
+                    decoration: const InputDecoration(
+                      labelText: "Hora de Inicio",
+                      prefixIcon: Icon(Icons.access_time),
+                    ),
+                    items: availableTimes.map<DropdownMenuItem<String>>((t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(t),
+                    )).toList(),
+                    onChanged: (v) {
+                      if (v != null) setModal(() => selectedTime = v);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 6. Selector de Estado
+                  DropdownButtonFormField<String>(
+                    value: selectedEstado,
+                    decoration: const InputDecoration(
+                      labelText: "Estado de la Cita",
+                      prefixIcon: Icon(Icons.flag),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'pendiente', child: Text('Pendiente')),
+                      DropdownMenuItem(value: 'confirmada', child: Text('Confirmada')),
+                      DropdownMenuItem(value: 'en ejecución', child: Text('En ejecución')),
+                      DropdownMenuItem(value: 'completada', child: Text('Completada')),
+                      DropdownMenuItem(value: 'cancelada', child: Text('Cancelada')),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setModal(() => selectedEstado = v);
+                    },
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancelar"),
+              ),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                ),
                 onPressed: () async {
                   if (selectedClientId == null || selectedServiceId == null) return;
 
+                  final dateStr = "${formDate.year}-${formDate.month.toString().padLeft(2, '0')}-${formDate.day.toString().padLeft(2, '0')}";
+
+                  final parts = selectedTime.split(':');
+                  int h = int.tryParse(parts[0]) ?? 9;
+                  int m = (int.tryParse(parts.length > 1 ? parts[1] : '00') ?? 0) + 30;
+                  if (m >= 60) {
+                    h += 1;
+                    m -= 60;
+                  }
+                  final endTimeStr = "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}";
+
+                  final serviceObj = provider.servicios.firstWhere(
+                    (s) => s['id_servicio'] == selectedServiceId,
+                    orElse: () => null,
+                  );
+
                   final data = {
                     "id_cliente": selectedClientId,
-                    "id_barbero": 1, // ID fijo o selector
+                    "id_barbero": selectedBarberId ?? 1,
                     "id_servicio": selectedServiceId,
-                    "fecha": selectedDate.toIso8601String(),
-                    "hora_inicio": "09:00",
-                    "hora_fin": "10:00"
+                    "fecha": dateStr,
+                    "hora_inicio": selectedTime,
+                    "hora_fin": endTimeStr,
+                    "estado": selectedEstado,
+                    "detalles_json": {
+                      "servicios": [
+                        {
+                          "id_servicio": selectedServiceId,
+                          "nombre": serviceObj != null ? serviceObj['nombre'] : 'Servicio',
+                          "precio": serviceObj != null ? (double.tryParse(serviceObj['precio_neto']?.toString() ?? '0') ?? 0) : 0,
+                          "cantidad": 1
+                        }
+                      ],
+                      "productos": []
+                    }
                   };
 
-                  await provider.createAppointment(data);
-                  Navigator.pop(context);
+                  if (appointment != null) {
+                    await provider.editAppointment(appointment['id_cita'], data);
+                  } else {
+                    await provider.createAppointment(data);
+                  }
+                  if (context.mounted) Navigator.pop(context);
                 },
                 child: const Text("Guardar"),
               ),

@@ -18,6 +18,8 @@ import 'providers/sale_provider.dart';
 
 import 'core/app_theme.dart'; // Add import
 
+import 'providers/theme_provider.dart'; // Add theme provider
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_ES', null);
@@ -31,9 +33,9 @@ class CzBarberApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-
         /// 🔐 AUTH
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()), // Register ThemeProvider
 
         /// 🧑‍💼 ADMIN
         ChangeNotifierProvider(create: (_) => UserProvider()),
@@ -51,11 +53,17 @@ class CzBarberApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BarberAppointmentProvider()),
 
       ],
-      child: MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        title: 'CzBarber',
-        routerConfig: appRouter,
-        theme: AppTheme.lightTheme, // Use custom theme
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            title: 'CzBarber',
+            routerConfig: appRouter,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          );
+        },
       ),
     );
   }

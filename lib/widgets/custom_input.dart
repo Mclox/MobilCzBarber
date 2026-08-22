@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
 
-class CustomInput extends StatelessWidget {
+class CustomInput extends StatefulWidget {
   final TextEditingController controller;
   final IconData icon;
   final String label;
@@ -16,17 +16,43 @@ class CustomInput extends StatelessWidget {
   });
 
   @override
+  State<CustomInput> createState() => _CustomInputState();
+}
+
+class _CustomInputState extends State<CustomInput> {
+  late bool _obscureText;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.isPassword;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: controller,
-      obscureText: isPassword,
+      controller: widget.controller,
+      obscureText: widget.isPassword ? _obscureText : false,
       style: const TextStyle(
         fontSize: 15,
         color: AppTheme.darkText,
       ),
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: AppTheme.primary),
-        labelText: label,
+        prefixIcon: Icon(widget.icon, color: AppTheme.primary),
+        suffixIcon: widget.isPassword
+            ? IconButton(
+                icon: Icon(
+                  _obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: AppTheme.lightText,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
+              )
+            : null,
+        labelText: widget.label,
         labelStyle: const TextStyle(
           color: AppTheme.lightText,
           fontWeight: FontWeight.w500,

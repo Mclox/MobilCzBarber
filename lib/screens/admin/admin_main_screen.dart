@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../widgets/profile_tab_widget.dart';
 import 'admin_dashboard_tab.dart';
-import 'admin_users_tab.dart';
-import 'admin_roles_tab.dart';
-import 'admin_services_tab.dart';
+import 'manage_users_screen.dart';
+import 'manage_services_screen.dart';
+import 'manage_appointments_screen.dart';
 
 /// Pantalla principal del Administrador con BottomNavigationBar
 class AdminMainScreen extends StatefulWidget {
@@ -20,11 +20,11 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
 
   /// Lista de pantallas correspondientes a cada pestaña
   final List<Widget> _screens = [
-    const AdminDashboardTab(),  // Índice 0: Dashboard
-    const AdminUsersTab(),      // Índice 1: Usuarios
-    const AdminRolesTab(),      // Índice 2: Roles
-    const AdminServicesTab(),   // Índice 3: Servicios
-    const ProfileTabWidget(     // Índice 4: Perfil
+    const AdminDashboardTab(),       // Índice 0: Dashboard
+    const ManageUsersScreen(),       // Índice 1: Usuarios (Directo)
+    const ManageServicesScreen(),    // Índice 2: Servicios (Directo)
+    const ManageAppointmentsScreen(),// Índice 3: Citas (Directo)
+    const ProfileTabWidget(          // Índice 4: Perfil
       primaryColor: AppTheme.primary,
     ),
   ];
@@ -77,16 +77,16 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
             label: 'Usuarios',
           ),
           
-          // Pestaña 2: Roles
+          // Pestaña 2: Servicios
           BottomNavigationBarItem(
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Roles',
+            icon: Icon(Icons.content_cut),
+            label: 'Servicios',
           ),
           
-          // Pestaña 3: Servicios
+          // Pestaña 3: Citas
           BottomNavigationBarItem(
-            icon: Icon(Icons.business),
-            label: 'Servicios',
+            icon: Icon(Icons.calendar_today),
+            label: 'Citas',
           ),
           
           // Pestaña 4: Perfil

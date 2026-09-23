@@ -55,14 +55,22 @@ class _BookAppointmentScreenState extends State<BookAppointmentScreen> {
                   const SizedBox(height: 10),
 
                   DropdownButtonFormField<int>(
-                    value: selectedBarberId,
+                    value: barberProvider.barbers.any((b) => b.id == selectedBarberId) ? selectedBarberId : null,
                     hint: const Text("Barbero disponible"),
-                    items: barberProvider.barbers.map((barber) {
-                      return DropdownMenuItem(
-                        value: barber.id,
-                        child: Text(barber.name),
-                      );
-                    }).toList(),
+                    items: () {
+                      final seenIds = <int>{};
+                      final list = <DropdownMenuItem<int>>[];
+                      for (final barber in barberProvider.barbers) {
+                        if (!seenIds.contains(barber.id)) {
+                          seenIds.add(barber.id);
+                          list.add(DropdownMenuItem(
+                            value: barber.id,
+                            child: Text(barber.name),
+                          ));
+                        }
+                      }
+                      return list;
+                    }(),
                     onChanged: (value) {
                       setState(() => selectedBarberId = value);
                     },

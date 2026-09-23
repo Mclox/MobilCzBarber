@@ -27,15 +27,7 @@ class AuthService {
         
         token = data['token'];
         // Mapeamos el JSON de Node al modelo de Flutter
-        currentUser = User(
-          id: data['user']['id_usuario'],
-          name: data['user']['nombre'],
-          email: data['user']['email'],
-          password: '', // Por seguridad no guardamos la contraseña
-          role: data['user']['rol'] == 'Administrador' ? 'admin' 
-              : data['user']['rol'] == 'Barbero' ? 'employee' 
-              : 'client',
-        );
+        currentUser = User.fromJson(data['user']);
 
         // Guardamos en el celular para que no tenga que loguearse cada vez
         final prefs = await SharedPreferences.getInstance();

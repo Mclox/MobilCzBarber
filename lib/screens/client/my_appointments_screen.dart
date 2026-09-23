@@ -502,19 +502,33 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
   }
 
   void _modifyAppointment(dynamic appointment) async {
-    // Convert dynamic appointment to Map<String, dynamic>
+    DateTime parsedDate;
+    if (appointment['fecha'] != null) {
+      if (appointment['fecha'] is DateTime) {
+        parsedDate = appointment['fecha'];
+      } else {
+        try {
+          parsedDate = DateTime.parse(appointment['fecha'].toString());
+        } catch (_) {
+          parsedDate = DateTime.now();
+        }
+      }
+    } else {
+      parsedDate = DateTime.now();
+    }
+
     final Map<String, dynamic> appointmentMap = {
-      'id': appointment['id_cita'],
-      'id_cita': appointment['id_cita'],
+      'id': appointment['id_cita'] ?? appointment['id'],
+      'id_cita': appointment['id_cita'] ?? appointment['id'],
       'id_cliente': appointment['id_cliente'],
       'id_barbero': appointment['id_barbero'],
       'id_servicio': appointment['id_servicio'],
-      'service': appointment['servicio_nombre'] ?? 'Servicio',
-      'barber': appointment['barbero_nombre'] ?? 'Sin barbero',
-      'date': appointment['fecha'] != null ? DateTime.parse(appointment['fecha'].toString()) : DateTime.now(),
-      'time': appointment['hora_inicio'] ?? '09:00',
-      'price': appointment['precio_neto'] ?? 0,
-      'status': appointment['estado'],
+      'service': appointment['servicio_nombre'] ?? appointment['servicio'] ?? 'Servicio',
+      'barber': appointment['barbero_nombre'] ?? appointment['barbero'] ?? 'Sin barbero',
+      'date': parsedDate,
+      'time': (appointment['hora_inicio'] ?? appointment['hora'] ?? '09:00').toString(),
+      'price': appointment['precio_neto'] ?? appointment['precio'] ?? 0,
+      'status': appointment['estado'] ?? 'pendiente',
     };
 
     final result = await Navigator.push(
@@ -524,7 +538,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
       ),
     );
 
-    if (result != null && mounted) {
+    if (result == true && mounted) {
       _loadAppointments();
       
       ScaffoldMessenger.of(context).showSnackBar(

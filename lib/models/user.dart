@@ -29,7 +29,7 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     // Resolver el rol en el formato que espera la app (admin, employee, client)
-    String resolvedRole = json["rol_nombre"] ?? json["role"] ?? '';
+    String resolvedRole = json["rol_nombre"] ?? json["role"] ?? json["rol"] ?? '';
     if (resolvedRole == 'Administrador') {
       resolvedRole = 'admin';
     } else if (resolvedRole == 'Barbero') {
@@ -44,7 +44,7 @@ class User {
       email: json["email"] ?? '',
       password: json["password"] ?? json["contrasena"],
       role: resolvedRole.isEmpty ? 'client' : resolvedRole,
-      avatarUrl: json["img"] ?? json["avatarUrl"],
+      avatarUrl: (json["img"] ?? json["avatarUrl"] ?? json["avatar"] ?? json["foto"])?.toString(),
       document: json["documento"] ?? json["identificacion"],
       documentType: json["tipo_documento"],
       phone: json["telefono"],

@@ -6,6 +6,10 @@ import '../../core/app_theme.dart';
 import '../../core/ui_helpers.dart';
 import '../client/booking_screen.dart';
 import '../../core/whatsapp_helper.dart';
+import 'employee_main_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../../providers/barber_availability_provider.dart';
+import '../../providers/auth_provider.dart';
 
 class EmployeeAgendaScreen extends StatefulWidget {
   const EmployeeAgendaScreen({super.key});
@@ -45,6 +49,19 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
       case 'pendiente':
       default:
         return Colors.amber;
+    }
+  }
+
+  String _getDayName(DateTime date) {
+    switch (date.weekday) {
+      case DateTime.monday: return "Lunes";
+      case DateTime.tuesday: return "Martes";
+      case DateTime.wednesday: return "Miércoles";
+      case DateTime.thursday: return "Jueves";
+      case DateTime.friday: return "Viernes";
+      case DateTime.saturday: return "Sábado";
+      case DateTime.sunday: return "Domingo";
+      default: return "";
     }
   }
 
@@ -163,8 +180,28 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       onPressed: () async {
-        await provider.updateAppointmentStatus(appointmentId, statusKey);
-        if (context.mounted) Navigator.pop(context);
+        final success = await provider.updateAppointmentStatus(appointmentId, statusKey);
+        if (context.mounted) {
+          Navigator.pop(context); // Cierra bottom sheet
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Estado de la cita actualizado correctamente"),
+                backgroundColor: Colors.green,
+              ),
+            );
+            
+            // Redirigir al inicio de forma fluida
+            final mainScreen = context.findAncestorStateOfType<EmployeeMainScreenState>();
+            if (mainScreen != null) {
+              mainScreen.selectTab(0);
+            } else if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              context.go("/employee/home");
+            }
+          }
+        }
       },
       child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
     );
@@ -217,87 +254,127 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
                         final estadoStr = (a['estado'] ?? 'pendiente').toString();
                         return Card(
                           margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                          child: ListTile(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: InkWell(
                             onTap: () => _showAppointmentDetails(context, a, provider),
-                            leading: CircleAvatar(
-                              backgroundColor: _getStatusColor(estadoStr).withOpacity(0.2),
-                              child: Icon(Icons.content_cut, color: _getStatusColor(estadoStr)),
-                            ),
-                            title: Text(
-                              a['servicio_nombre'] ?? 'Servicio',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Hora: ${a['hora_inicio']} | Cliente: ${a['cliente_nombre'] ?? 'N/A'}"),
-                                const SizedBox(height: 2),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(estadoStr).withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: _getStatusColor(estadoStr).withOpacity(0.2),
+                                        child: Icon(Icons.content_cut, color: _getStatusColor(estadoStr)),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              a['servicio_nombre'] ?? 'Servicio',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              "Hora: ${a['hora_inicio']} | Cliente: ${a['cliente_nombre'] ?? 'N/A'}",
+                                              style: const TextStyle(color: Colors.black87),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: _getStatusColor(estadoStr).withOpacity(0.15),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                "Estado: $estadoStr".toUpperCase(),
+                                                style: TextStyle(
+                                                  color: _getStatusColor(estadoStr),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  child: Text(
-                                    "Estado: $estadoStr",
-                                    style: TextStyle(
-                                      color: _getStatusColor(estadoStr),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11,
-                                    ),
+                                  const Divider(height: 20, thickness: 0.5),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.info_outline, color: AppTheme.primary),
+                                        tooltip: "Ver detalle",
+                                        onPressed: () => _showAppointmentDetails(context, a, provider),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit, color: Colors.blue),
+                                        tooltip: "Editar cita",
+                                        onPressed: () => _openAppointmentForm(appointment: a),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
+                                        tooltip: "Enviar Recordatorio WhatsApp",
+                                        onPressed: () async {
+                                          final clientPhone = (a['cliente_telefono'] ?? a['telefono_cliente'] ?? '').toString();
+                                          final clientName = (a['cliente_nombre'] ?? 'Cliente').toString();
+                                          final barberName = (a['barbero_nombre'] ?? 'Barbero').toString();
+                                          final timeStr = (a['hora_inicio'] ?? '09:00').toString();
+                                          final serviceName = (a['servicio_nombre'] ?? 'Servicio').toString();
+
+                                          final message = WhatsAppHelper.build30MinClientReminder(
+                                            clientName: clientName,
+                                            timeStr: timeStr,
+                                            serviceName: serviceName,
+                                            barberName: barberName,
+                                          );
+
+                                          await WhatsAppHelper.openWhatsApp(
+                                            phone: clientPhone,
+                                            message: message,
+                                            context: context,
+                                          );
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        tooltip: "Eliminar",
+                                        onPressed: () async {
+                                          final confirm = await ConfirmationHelper.showDeleteConfirmation(context: context);
+                                          if (confirm) {
+                                            await provider.deleteAppointment(a['id_cita']);
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text("Cita eliminada correctamente"),
+                                                  backgroundColor: Colors.redAccent,
+                                                ),
+                                              );
+                                              
+                                              // Redirigir al inicio de forma fluida
+                                              final mainScreen = context.findAncestorStateOfType<EmployeeMainScreenState>();
+                                              if (mainScreen != null) {
+                                                mainScreen.selectTab(0);
+                                              } else if (Navigator.canPop(context)) {
+                                                Navigator.pop(context);
+                                              } else {
+                                                context.go("/employee/home");
+                                              }
+                                            }
+                                          }
+                                        },
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
-                            isThreeLine: true,
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.info_outline, color: AppTheme.primary),
-                                  tooltip: "Ver detalle",
-                                  onPressed: () => _showAppointmentDetails(context, a, provider),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                  tooltip: "Editar cita",
-                                  onPressed: () => _openAppointmentForm(appointment: a),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
-                                  tooltip: "Enviar Recordatorio WhatsApp",
-                                  onPressed: () async {
-                                    final clientPhone = (a['cliente_telefono'] ?? a['telefono_cliente'] ?? '').toString();
-                                    final clientName = (a['cliente_nombre'] ?? 'Cliente').toString();
-                                    final barberName = (a['barbero_nombre'] ?? 'Barbero').toString();
-                                    final timeStr = (a['hora_inicio'] ?? '09:00').toString();
-                                    final serviceName = (a['servicio_nombre'] ?? 'Servicio').toString();
-
-                                    final message = WhatsAppHelper.build30MinClientReminder(
-                                      clientName: clientName,
-                                      timeStr: timeStr,
-                                      serviceName: serviceName,
-                                      barberName: barberName,
-                                    );
-
-                                    await WhatsAppHelper.openWhatsApp(
-                                      phone: clientPhone,
-                                      message: message,
-                                      context: context,
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  tooltip: "Eliminar",
-                                  onPressed: () async {
-                                    final confirm = await ConfirmationHelper.showDeleteConfirmation(context: context);
-                                    if (confirm) {
-                                      provider.deleteAppointment(a['id_cita']);
-                                    }
-                                  },
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -350,18 +427,27 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
   void _openAppointmentForm({dynamic appointment}) {
     final provider = Provider.of<BarberAppointmentProvider>(context, listen: false);
 
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
     int? selectedClientId = appointment != null ? (appointment['id_cliente'] as int?) : null;
     int? selectedServiceId = appointment != null ? (appointment['id_servicio'] as int?) : null;
     int? selectedBarberId = appointment != null ? (appointment['id_barbero'] as int?) : null;
 
     if (selectedClientId == null && provider.clientes.isNotEmpty) {
-      selectedClientId = provider.clientes.first['id_cliente'] as int?;
+      selectedClientId = (provider.clientes.first['id_cliente'] ?? provider.clientes.first['id_usuario']) as int?;
     }
     if (selectedServiceId == null && provider.servicios.isNotEmpty) {
-      selectedServiceId = provider.servicios.first['id_servicio'] as int?;
+      selectedServiceId = (provider.servicios.first['id_servicio'] ?? provider.servicios.first['id']) as int?;
     }
     if (selectedBarberId == null && provider.barberos.isNotEmpty) {
-      selectedBarberId = (provider.barberos.first['id_barbero'] ?? provider.barberos.first['id_usuario']) as int?;
+      final currentUserId = auth.user?.id?.toString();
+      final myBarber = provider.barberos.firstWhere(
+        (b) => (b['id_usuario']?.toString() == currentUserId) ||
+               (b['id_barbero']?.toString() == currentUserId) ||
+               (b['id_empleado']?.toString() == currentUserId),
+        orElse: () => provider.barberos.first,
+      );
+      selectedBarberId = (myBarber['id_barbero'] ?? myBarber['id_usuario'] ?? myBarber['id_empleado'] ?? 1) as int?;
     }
 
     DateTime formDate = selectedDate;
@@ -383,7 +469,8 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
       "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
       "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
       "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
-      "17:00", "17:30", "18:00", "18:30", "19:00"
+      "17:00", "17:30", "18:00", "18:30", "19:00", "19:30",
+      "20:00", "20:30", "21:00", "21:30", "22:00"
     ];
 
     if (!availableTimes.contains(selectedTime)) {
@@ -395,6 +482,48 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setModal) {
+          // Generar listas únicas y seguras para los selectores
+          final clientItems = <DropdownMenuItem<int>>[];
+          final seenClientIds = <int>{};
+          for (final c in provider.clientes) {
+            final int id = (c['id_cliente'] ?? c['id_usuario'] ?? 0) as int;
+            if (id != 0 && !seenClientIds.contains(id)) {
+              seenClientIds.add(id);
+              final String displayName = c['nombre_final'] ?? c['nombre'] ?? c['name'] ?? c['nombre_completo'] ?? 'Cliente #$id';
+              clientItems.add(DropdownMenuItem(value: id, child: Text(displayName)));
+            }
+          }
+
+          final serviceItems = <DropdownMenuItem<int>>[];
+          final seenServiceIds = <int>{};
+          for (final s in provider.servicios) {
+            final int id = (s['id_servicio'] ?? s['id'] ?? 0) as int;
+            if (id != 0 && !seenServiceIds.contains(id)) {
+              seenServiceIds.add(id);
+              serviceItems.add(DropdownMenuItem(
+                value: id,
+                child: Text("${s['nombre']} (\$${s['precio_neto'] ?? 0})"),
+              ));
+            }
+          }
+
+          final barberItems = <DropdownMenuItem<int>>[];
+          final seenBarberIds = <int>{};
+          for (final b in provider.barberos) {
+            final int id = (b['id_barbero'] ?? b['id_usuario'] ?? b['id_empleado'] ?? 0) as int;
+            if (id != 0 && !seenBarberIds.contains(id)) {
+              seenBarberIds.add(id);
+              barberItems.add(DropdownMenuItem(
+                value: id,
+                child: Text(b['nombre'] ?? 'Barbero #$id'),
+              ));
+            }
+          }
+
+          final effectiveClientId = seenClientIds.contains(selectedClientId) ? selectedClientId : (seenClientIds.isNotEmpty ? seenClientIds.first : null);
+          final effectiveServiceId = seenServiceIds.contains(selectedServiceId) ? selectedServiceId : (seenServiceIds.isNotEmpty ? seenServiceIds.first : null);
+          final effectiveBarberId = seenBarberIds.contains(selectedBarberId) ? selectedBarberId : (seenBarberIds.isNotEmpty ? seenBarberIds.first : null);
+
           return AlertDialog(
             title: Text(appointment == null ? "Nueva Cita" : "Editar Cita"),
             content: SingleChildScrollView(
@@ -404,51 +533,36 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
                 children: [
                   // 1. Selector de Cliente
                   DropdownButtonFormField<int>(
-                    value: provider.clientes.any((c) => c['id_cliente'] == selectedClientId) ? selectedClientId : null,
+                    value: effectiveClientId,
                     decoration: const InputDecoration(
                       labelText: "Cliente",
                       prefixIcon: Icon(Icons.person),
                     ),
-                    items: provider.clientes.map<DropdownMenuItem<int>>((c) {
-                      final String displayName = c['nombre_final'] ?? c['nombre'] ?? c['name'] ?? c['nombre_completo'] ?? 'Sin nombre';
-                      return DropdownMenuItem(
-                        value: (c['id_cliente'] ?? 0) as int,
-                        child: Text(displayName),
-                      );
-                    }).toList(),
+                    items: clientItems,
                     onChanged: (v) => setModal(() => selectedClientId = v),
                   ),
                   const SizedBox(height: 12),
 
                   // 2. Selector de Servicio
                   DropdownButtonFormField<int>(
-                    value: provider.servicios.any((s) => s['id_servicio'] == selectedServiceId) ? selectedServiceId : null,
+                    value: effectiveServiceId,
                     decoration: const InputDecoration(
                       labelText: "Servicio",
                       prefixIcon: Icon(Icons.content_cut),
                     ),
-                    items: provider.servicios.map<DropdownMenuItem<int>>((s) => DropdownMenuItem(
-                      value: s['id_servicio'] as int,
-                      child: Text("${s['nombre']} (\$${s['precio_neto'] ?? 0})"),
-                    )).toList(),
+                    items: serviceItems,
                     onChanged: (v) => setModal(() => selectedServiceId = v),
                   ),
                   const SizedBox(height: 12),
 
                   // 3. Selector de Barbero
                   DropdownButtonFormField<int>(
-                    value: provider.barberos.any((b) => (b['id_barbero'] ?? b['id_usuario']) == selectedBarberId) ? selectedBarberId : null,
+                    value: effectiveBarberId,
                     decoration: const InputDecoration(
                       labelText: "Barbero Asignado",
                       prefixIcon: Icon(Icons.badge),
                     ),
-                    items: provider.barberos.map<DropdownMenuItem<int>>((b) {
-                      final int bId = (b['id_barbero'] ?? b['id_usuario'] ?? 1) as int;
-                      return DropdownMenuItem(
-                        value: bId,
-                        child: Text(b['nombre'] ?? 'Barbero'),
-                      );
-                    }).toList(),
+                    items: barberItems,
                     onChanged: (v) => setModal(() => selectedBarberId = v),
                   ),
                   const SizedBox(height: 12),
@@ -530,21 +644,62 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
                 onPressed: () async {
                   if (selectedClientId == null || selectedServiceId == null) return;
 
+                  final serviceObj = provider.servicios.firstWhere(
+                    (s) => s['id_servicio'] == selectedServiceId,
+                    orElse: () => null,
+                  );
+                  final int duration = (serviceObj != null ? (serviceObj['duracion_minutos'] ?? 30) : 30).toInt();
+
+                  // 1. Validar y auto-extender disponibilidad si es necesario
+                  final availabilityProvider = Provider.of<BarberAvailabilityProvider>(context, listen: false);
+                  final dayName = _getDayName(formDate);
+                  bool availabilityChanged = false;
+                  
+                  if (availabilityProvider.availability[dayName] == false) {
+                    availabilityProvider.toggleDay(dayName, true);
+                    availabilityChanged = true;
+                  }
+                  
+                  final timeParts = selectedTime.split(':');
+                  final hStart = int.tryParse(timeParts[0]) ?? 9;
+                  final mStart = int.tryParse(timeParts.length > 1 ? timeParts[1] : '00') ?? 0;
+                  final selectedStart = TimeOfDay(hour: hStart, minute: mStart);
+                  
+                  final startMins = selectedStart.hour * 60 + selectedStart.minute;
+                  final currentStartMins = availabilityProvider.startTime.hour * 60 + availabilityProvider.startTime.minute;
+                  if (startMins < currentStartMins) {
+                    availabilityProvider.setStartTime(selectedStart);
+                    availabilityChanged = true;
+                  }
+                  
+                  final endMins = startMins + duration;
+                  final currentEndMins = availabilityProvider.endTime.hour * 60 + availabilityProvider.endTime.minute;
+                  if (endMins > currentEndMins) {
+                    int endHour = endMins ~/ 60;
+                    int endMin = (endMins % 60).toInt();
+                    if (endHour >= 24) {
+                      endHour = 23;
+                      endMin = 59;
+                    }
+                    availabilityProvider.setEndTime(TimeOfDay(hour: endHour, minute: endMin));
+                    availabilityChanged = true;
+                  }
+                  
+                  if (availabilityChanged) {
+                    await availabilityProvider.saveAvailability();
+                  }
+
+                  // 2. Guardar Cita
                   final dateStr = "${formDate.year}-${formDate.month.toString().padLeft(2, '0')}-${formDate.day.toString().padLeft(2, '0')}";
 
                   final parts = selectedTime.split(':');
                   int h = int.tryParse(parts[0]) ?? 9;
-                  int m = (int.tryParse(parts.length > 1 ? parts[1] : '00') ?? 0) + 30;
+                  int m = (int.tryParse(parts.length > 1 ? parts[1] : '00') ?? 0) + duration;
                   if (m >= 60) {
                     h += 1;
                     m -= 60;
                   }
                   final endTimeStr = "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}";
-
-                  final serviceObj = provider.servicios.firstWhere(
-                    (s) => s['id_servicio'] == selectedServiceId,
-                    orElse: () => null,
-                  );
 
                   final data = {
                     "id_cliente": selectedClientId,
@@ -567,12 +722,34 @@ class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
                     }
                   };
 
+                  bool success = false;
                   if (appointment != null) {
-                    await provider.editAppointment(appointment['id_cita'], data);
+                    success = await provider.editAppointment(appointment['id_cita'], data);
                   } else {
-                    await provider.createAppointment(data);
+                    success = await provider.createAppointment(data);
                   }
-                  if (context.mounted) Navigator.pop(context);
+                  
+                  if (context.mounted) {
+                    Navigator.pop(context); // Cierra modal
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(appointment != null ? "Cita editada correctamente" : "Cita creada correctamente"),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      
+                      // Redirigir al inicio de forma fluida
+                      final mainScreen = context.findAncestorStateOfType<EmployeeMainScreenState>();
+                      if (mainScreen != null) {
+                        mainScreen.selectTab(0);
+                      } else if (Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      } else {
+                        context.go("/employee/home");
+                      }
+                    }
+                  }
                 },
                 child: const Text("Guardar"),
               ),

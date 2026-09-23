@@ -22,7 +22,7 @@ import 'providers/theme_provider.dart'; // Add theme provider
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('es_ES', null);
+  await initializeDateFormatting();
   runApp(const CzBarberApp());
 }
 

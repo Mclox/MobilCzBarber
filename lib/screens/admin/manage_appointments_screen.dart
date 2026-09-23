@@ -587,6 +587,31 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(builder: (context, setModal) {
+        final clientItems = <DropdownMenuItem<int>>[];
+        final seenClientIds = <int>{};
+        for (final c in provider.clientes) {
+          final int id = (c['id_cliente'] ?? c['id_usuario'] ?? 0) as int;
+          if (id != 0 && !seenClientIds.contains(id)) {
+            seenClientIds.add(id);
+            final String name = c['nombre_final']?.toString() ?? c['nombre']?.toString() ?? 'Cliente #$id';
+            clientItems.add(DropdownMenuItem(value: id, child: Text(name)));
+          }
+        }
+
+        final barberItems = <DropdownMenuItem<int>>[];
+        final seenBarberIds = <int>{};
+        for (final b in provider.barberos) {
+          final int id = (b['id_barbero'] ?? b['id_usuario'] ?? b['id_empleado'] ?? 0) as int;
+          if (id != 0 && !seenBarberIds.contains(id)) {
+            seenBarberIds.add(id);
+            final String name = b['nombre']?.toString() ?? 'Barbero #$id';
+            barberItems.add(DropdownMenuItem(value: id, child: Text(name)));
+          }
+        }
+
+        final effectiveClientId = seenClientIds.contains(selectedClientId) ? selectedClientId : (seenClientIds.isNotEmpty ? seenClientIds.first : null);
+        final effectiveBarberId = seenBarberIds.contains(selectedBarberId) ? selectedBarberId : (seenBarberIds.isNotEmpty ? seenBarberIds.first : null);
+
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: Text(appointment == null ? "Nueva Cita" : "Editar Cita", style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -597,23 +622,19 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
               children: [
                 // CLIENTE
                 DropdownButtonFormField<int>(
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: "Selecciona Cliente"),
-                  value: selectedClientId,
-                  items: provider.clientes.map<DropdownMenuItem<int>>((c) => DropdownMenuItem(
-                    value: (c['id_cliente'] ?? 0) as int, 
-                    child: Text(c['nombre_final']?.toString() ?? 'Sin nombre') 
-                  )).toList(),
+                  value: effectiveClientId,
+                  items: clientItems,
                   onChanged: (v) => setModal(() => selectedClientId = v),
                 ),
                 const SizedBox(height: 10),
                 // BARBERO
                 DropdownButtonFormField<int>(
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: "Selecciona Barbero"),
-                  value: selectedBarberId,
-                  items: provider.barberos.map<DropdownMenuItem<int>>((b) => DropdownMenuItem(
-                    value: (b['id_barbero'] ?? b['id_usuario'] ?? 0) as int, 
-                    child: Text(b['nombre']?.toString() ?? 'Sin nombre')
-                  )).toList(),
+                  value: effectiveBarberId,
+                  items: barberItems,
                   onChanged: (v) => setModal(() => selectedBarberId = v),
                 ),
                 const SizedBox(height: 14),
@@ -652,6 +673,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen> {
                 const SizedBox(height: 10),
                 // HORA
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: "Hora de Inicio"),
                   value: selectedHour,
                   items: timeSlots

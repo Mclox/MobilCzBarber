@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/update_service.dart';
 
 // Importar las pantallas del cliente
 import 'client/home_screen.dart';
@@ -31,6 +32,10 @@ class _MainScreenState extends State<MainScreen> {
       MyAppointmentsScreen(onBack: () => _onItemTapped(0)), // Índice 2: Mis Citas
       const ProfileScreen(),                       // Índice 3: Perfil
     ];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppVersionChecker.checkForUpdates(context);
+    });
   }
 
   /// Maneja el cambio de pestaña

@@ -9,6 +9,9 @@ import '../../providers/auth_provider.dart';
 import '../../providers/service_provider.dart';
 import '../../services/appointment_service.dart';
 import '../../core/whatsapp_helper.dart';
+import '../../providers/barber_availability_provider.dart';
+import '../../providers/barber_appointment_provider.dart';
+import '../../widgets/booking_confirmation_dialog.dart';
 
 /// Pantalla unificada de reserva de citas para Administrador, Barbero y Cliente
 class BookingScreen extends StatefulWidget {
@@ -33,13 +36,14 @@ class _BookingScreenState extends State<BookingScreen> {
   List<dynamic> _clients = [];
   List<dynamic> _barbersList = [];
   List<dynamic> _busySlots = [];
-  bool _isLoading = false;
+  bool _isLoading = true;
   int _currentStep = 0;
 
   final List<String> _availableTimes = [
     '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
     '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-    '16:00', '16:30', '17:00', '17:30', '18:00',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+    '20:00', '20:30', '21:00', '21:30', '22:00'
   ];
 
   @override
@@ -119,19 +123,73 @@ class _BookingScreenState extends State<BookingScreen> {
     final parts = timeStr.split(':');
     final hh = int.parse(parts[0]);
     final mm = int.parse(parts[1]);
+    final slotStart = hh * 60 + mm;
     
     if (dateStr == todayStr) {
       final currentMins = now.hour * 60 + now.minute;
-      final slotMins = hh * 60 + mm;
-      if (slotMins <= currentMins) {
+      if (slotStart <= currentMins) {
         return false; 
       }
     }
     
-    final barberId = barber['id_barbero'] ?? barber['id_usuario'];
-    final duration = service['duracion_minutos'] ?? 30;
+    // --- VALIDACIÓN DE DISPONIBILIDAD REAL ---
+    final provider = Provider.of<BarberAvailabilityProvider>(context, listen: false);
+    final barberId = barber['id_barbero'] ?? barber['id_usuario'] ?? barber['id'];
+    final auth = Provider.of<AuthProvider>(context, listen: false);
     
-    final slotStart = hh * 60 + mm;
+    if (barberId.toString() == auth.user?.id.toString()) {
+      // Validar día
+      String getDayName(DateTime d) {
+        switch (d.weekday) {
+          case DateTime.monday: return "Lunes";
+          case DateTime.tuesday: return "Martes";
+          case DateTime.wednesday: return "Miércoles";
+          case DateTime.thursday: return "Jueves";
+          case DateTime.friday: return "Viernes";
+          case DateTime.saturday: return "Sábado";
+          case DateTime.sunday: return "Domingo";
+          default: return "";
+        }
+      }
+      final dayName = getDayName(date);
+      if (provider.availability[dayName] == false) {
+        return false;
+      }
+      
+      // Validar horario
+      final startMins = provider.startTime.hour * 60 + provider.startTime.minute;
+      final endMins = provider.endTime.hour * 60 + provider.endTime.minute;
+      if (slotStart < startMins || slotStart >= endMins) {
+        return false;
+      }
+    } else {
+      final startStr = barber['hora_inicio']?.toString();
+      final endStr = barber['hora_fin']?.toString();
+      
+      if (startStr != null && startStr.isNotEmpty && endStr != null && endStr.isNotEmpty) {
+        try {
+          final startParts = startStr.split(':');
+          final endParts = endStr.split(':');
+          final startMins = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+          final endMins = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+          
+          if (slotStart < startMins || slotStart >= endMins) {
+            return false;
+          }
+        } catch (_) {}
+      } else {
+        if (slotStart < 8 * 60 || slotStart >= 18 * 60) {
+          return false;
+        }
+      }
+      
+      if (date.weekday == DateTime.sunday) {
+        return false;
+      }
+    }
+    // --- FIN VALIDACIÓN ---
+    
+    final duration = service['duracion_minutos'] ?? 30;
     final slotEnd = slotStart + duration;
     
     for (final busy in busySlots) {
@@ -163,73 +221,251 @@ class _BookingScreenState extends State<BookingScreen> {
     return "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
   }
 
+  String _getBarberDisplayName(Map<String, dynamic>? barber) {
+    if (barber == null) return 'Barbero no seleccionado';
+
+    final nameCandidates = [
+      barber['nombre'],
+      barber['name'],
+      barber['nombre_completo'],
+      barber['nombre_final'],
+      barber['usuario_nombre'],
+      barber['barbero_nombre'],
+      barber['empleado_nombre'],
+      if (barber['usuario'] is Map) ...[
+        barber['usuario']['nombre'],
+        barber['usuario']['name'],
+        barber['usuario']['nombre_completo'],
+      ],
+    ];
+
+    for (final cand in nameCandidates) {
+      if (cand != null && cand.toString().trim().isNotEmpty && cand.toString().trim().toLowerCase() != 'null') {
+        return cand.toString().trim();
+      }
+    }
+
+    final selId = (barber['id_barbero'] ??
+            barber['id_empleado'] ??
+            barber['id_usuario'] ??
+            barber['id'])
+        ?.toString();
+    if (selId != null && _barbersList.isNotEmpty) {
+      final found = _barbersList.firstWhere(
+        (b) =>
+            (b['id_barbero']?.toString() == selId) ||
+            (b['id_empleado']?.toString() == selId) ||
+            (b['id_usuario']?.toString() == selId) ||
+            (b['id']?.toString() == selId),
+        orElse: () => null,
+      );
+      if (found != null && found is Map) {
+        final listCandidates = [
+          found['nombre'],
+          found['name'],
+          found['nombre_completo'],
+          found['nombre_final'],
+          found['usuario_nombre'],
+          if (found['usuario'] is Map) ...[
+            found['usuario']['nombre'],
+            found['usuario']['name'],
+          ]
+        ];
+        for (final cand in listCandidates) {
+          if (cand != null && cand.toString().trim().isNotEmpty && cand.toString().trim().toLowerCase() != 'null') {
+            return cand.toString().trim();
+          }
+        }
+      }
+    }
+
+    return 'Barbero profesional';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final userRole = authProvider.user?.role ?? 'client';
-    final steps = _getSteps(userRole);
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          title: const Text('Reservar Cita'),
+          backgroundColor: AppTheme.primary,
+          foregroundColor: Colors.white,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (widget.onBack != null) {
+                widget.onBack!();
+              } else if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/client/home');
+              }
+            },
+          ),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Cargando datos de reserva...',
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reservar Cita'),
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else if (widget.onBack != null) {
-              widget.onBack!();
-            } else {
-              context.go('/client/home');
+    try {
+      final authProvider = Provider.of<AuthProvider>(context);
+      final rawRole = (authProvider.user?.role ?? 'client').toLowerCase();
+      final steps = _getSteps(rawRole);
+      final safeStep = _currentStep.clamp(0, steps.isEmpty ? 0 : steps.length - 1);
+
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          title: const Text('Reservar Cita'),
+          backgroundColor: AppTheme.primary,
+          foregroundColor: Colors.white,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (widget.onBack != null) {
+                widget.onBack!();
+              } else if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                context.go('/client/home');
+              }
+            },
+          ),
+        ),
+        body: Stepper(
+          currentStep: safeStep,
+          physics: const BouncingScrollPhysics(),
+          type: StepperType.vertical,
+          onStepContinue: () => _onStepContinue(rawRole),
+          onStepCancel: _onStepCancel,
+          onStepTapped: (step) {
+            if (step <= safeStep) {
+              setState(() => _currentStep = step);
             }
           },
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Stepper(
-              currentStep: _currentStep,
-              onStepContinue: () => _onStepContinue(userRole),
-              onStepCancel: _onStepCancel,
-              controlsBuilder: (context, details) {
-                final isLast = _currentStep == steps.length - 1;
-                return Padding(
-                  padding: const EdgeInsets.only(top: 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: isLast ? _confirmBooking : details.onStepContinue,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isLast ? Colors.green : AppTheme.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+          controlsBuilder: (context, details) {
+            final isLast = safeStep == steps.length - 1;
+            return Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: isLast ? _confirmBooking : details.onStepContinue,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isLast ? const Color(0xFF2E7D32) : AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: Center(
+                        child: Text(
+                          isLast ? 'Confirmar Reserva' : 'Continuar',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.3,
                           ),
-                          child: Text(isLast ? 'Confirmar Reserva' : 'Continuar'),
                         ),
                       ),
-                      if (_currentStep > 0) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: details.onStepCancel,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
+                  if (safeStep > 0) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: details.onStepCancel,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.darkText,
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(color: Colors.grey.shade400),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'Atrás',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
                             ),
-                            child: const Text('Atrás'),
                           ),
                         ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-              steps: steps,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+          steps: steps,
+        ),
+      );
+    } catch (e, stack) {
+      debugPrint("Error in BookingScreen.build: $e\n$stack");
+      return Scaffold(
+        backgroundColor: AppTheme.background,
+        appBar: AppBar(
+          title: const Text('Reservar Cita'),
+          backgroundColor: AppTheme.primary,
+          foregroundColor: Colors.white,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Ocurrió un problema al abrir el formulario de agendamiento.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  e.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => _loadInitialData(),
+                  child: const Text('Reintentar'),
+                ),
+              ],
             ),
-    );
+          ),
+        ),
+      );
+    }
   }
 
   List<Step> _getSteps(String role) {
@@ -279,8 +515,20 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _buildClientSelection() {
-    final clientIds = _clients.map((c) => (c['id_cliente'] ?? 0) as int).toSet();
-    final effectiveSelectedId = (clientIds.contains(_selectedClientId)) ? _selectedClientId : (clientIds.isNotEmpty ? clientIds.first : null);
+    final clientItems = <DropdownMenuItem<int>>[];
+    final seenClientIds = <int>{};
+    for (final c in _clients) {
+      final int id = int.tryParse((c['id_cliente'] ?? c['id_usuario'] ?? 0).toString()) ?? 0;
+      if (id != 0 && !seenClientIds.contains(id)) {
+        seenClientIds.add(id);
+        final String displayName = (c['nombre_final'] ?? c['nombre'] ?? c['name'] ?? c['nombre_completo'] ?? 'Cliente #$id').toString();
+        clientItems.add(DropdownMenuItem(value: id, child: Text(displayName)));
+      }
+    }
+
+    final effectiveSelectedId = seenClientIds.contains(_selectedClientId)
+        ? _selectedClientId
+        : (seenClientIds.isNotEmpty ? seenClientIds.first : null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,33 +538,32 @@ class _BookingScreenState extends State<BookingScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<int>(
-          isExpanded: true,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.grey),
+        if (clientItems.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Cargando lista de clientes...', style: TextStyle(color: Colors.grey)),
+          )
+        else
+          DropdownButtonFormField<int>(
+            isExpanded: true,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.grey),
+              ),
             ),
+            value: effectiveSelectedId,
+            hint: const Text('Selecciona un cliente'),
+            items: clientItems,
+            onChanged: (value) {
+              setState(() {
+                _selectedClientId = value;
+              });
+            },
           ),
-          value: effectiveSelectedId,
-          hint: const Text('Selecciona un cliente'),
-          items: _clients.map((c) {
-            final String name = c['nombre_final'] ?? c['nombre'] ?? c['nombre_invitado'] ?? c['name'] ?? c['nombre_completo'] ?? 'Cliente General';
-            final int id = (c['id_cliente'] ?? 0) as int;
-            return DropdownMenuItem<int>(
-              value: id,
-              child: Text(name),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              _selectedClientId = value;
-            });
-          },
-        ),
       ],
     );
   }
@@ -331,110 +578,127 @@ class _BookingScreenState extends State<BookingScreen> {
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
-        ...services.map((service) {
-          final double price = double.tryParse(service['precio_neto']?.toString() ?? '0') ?? 0.0;
-          final isSelected = _selectedServiceMap?['id_servicio'] == service['id_servicio'];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            elevation: isSelected ? 4 : 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: isSelected ? AppTheme.primary : Colors.transparent,
-                width: 2,
+        if (services.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text('No hay servicios disponibles actualmente.', style: TextStyle(color: Colors.grey))),
+          )
+        else
+          ...services.map((service) {
+            final double price = double.tryParse(service['precio_neto']?.toString() ?? '0') ?? 0.0;
+            final duration = int.tryParse(service['duracion_minutos']?.toString() ?? '30') ?? 30;
+            final isSelected = _selectedServiceMap?['id_servicio']?.toString() == service['id_servicio']?.toString();
+            final serviceName = (service['nombre'] ?? 'Servicio').toString();
+            final serviceDesc = (service['descripcion'] ?? 'Servicio profesional').toString();
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: isSelected ? 4 : 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: isSelected ? AppTheme.primary : Colors.transparent,
+                  width: 2,
+                ),
               ),
-            ),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedServiceMap = service;
-                });
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                onTap: () {
+                  setState(() {
+                    _selectedServiceMap = service;
+                  });
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.content_cut,
+                          color: AppTheme.primary,
+                          size: 28,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.content_cut,
-                        color: AppTheme.primary,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            service['nombre'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            service['descripcion'] ?? 'Servicio profesional',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 16,
-                                color: Colors.grey[600],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              serviceName,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${service['duracion_minutos']} min',
-                                style: TextStyle(
-                                  fontSize: 12,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              serviceDesc,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 16,
                                   color: Colors.grey[600],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$duration min',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      '\$${price.toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary,
-                      ),
-                    ),
-                    if (isSelected)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(
-                          Icons.check_circle,
+                      Text(
+                        '\$${price.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                           color: AppTheme.primary,
                         ),
                       ),
-                  ],
+                      if (isSelected)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: Icon(
+                            Icons.check_circle,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
       ],
     );
   }
 
   Widget _buildDateSelection() {
+    final now = DateTime.now();
+    final firstDay = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
+    final lastDay = DateTime(now.year, now.month, now.day).add(const Duration(days: 90));
+    final focusedDay = _focusedDay.isBefore(firstDay)
+        ? firstDay
+        : (_focusedDay.isAfter(lastDay) ? lastDay : _focusedDay);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -459,27 +723,28 @@ class _BookingScreenState extends State<BookingScreen> {
             ],
           ),
           child: TableCalendar(
-            firstDay: DateTime.now(),
-            lastDay: DateTime.now().add(const Duration(days: 90)),
-            focusedDay: _focusedDay,
+            locale: 'es_ES',
+            firstDay: firstDay,
+            lastDay: lastDay,
+            focusedDay: focusedDay,
             selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selectedDay, focusedDay) {
+            onDaySelected: (selectedDay, newFocusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
+                _focusedDay = newFocusedDay;
                 _selectedTimeStr = null; // Reset time when date changes
               });
             },
-            calendarStyle: CalendarStyle(
-              selectedDecoration: const BoxDecoration(
+            calendarStyle: const CalendarStyle(
+              selectedDecoration: BoxDecoration(
                 color: AppTheme.primary,
                 shape: BoxShape.circle,
               ),
               todayDecoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(0.3),
+                color: Color(0x4D1976D2),
                 shape: BoxShape.circle,
               ),
-              selectedTextStyle: const TextStyle(color: Colors.white),
+              selectedTextStyle: TextStyle(color: Colors.white),
             ),
             headerStyle: const HeaderStyle(
               formatButtonVisible: false,
@@ -500,7 +765,7 @@ class _BookingScreenState extends State<BookingScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Fecha seleccionada: ${_selectedDay.day}/${_selectedDay.month}/${_selectedDay.year}',
+                  'Fecha seleccionada: ${_selectedDay.day.toString().padLeft(2, '0')}/${_selectedDay.month.toString().padLeft(2, '0')}/${_selectedDay.year}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                   ),
@@ -514,10 +779,15 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _buildTimeAndBarberSelection() {
-    // 1. Filtrar los horarios de disponibilidad del barbero seleccionado
-    final List<String> filteredTimes = _selectedBarberMap != null && _selectedServiceMap != null
-        ? _availableTimes.where((time) => _isSlotAvailable(time, _selectedBarberMap!, _selectedDay, _selectedServiceMap!, _busySlots)).toList()
-        : [];
+    List<String> filteredTimes = [];
+    try {
+      if (_selectedBarberMap != null && _selectedServiceMap != null) {
+        filteredTimes = _availableTimes.where((time) => _isSlotAvailable(time, _selectedBarberMap!, _selectedDay, _selectedServiceMap!, _busySlots)).toList();
+      }
+    } catch (e) {
+      debugPrint("Error filtering available times: $e");
+      filteredTimes = _availableTimes;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,50 +801,60 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        ..._barbersList.map((barber) {
-          final selectedId = (_selectedBarberMap?['id_barbero'] ?? _selectedBarberMap?['id_empleado'] ?? _selectedBarberMap?['id_usuario'] ?? _selectedBarberMap?['id'])?.toString();
-          final bId = (barber['id_barbero'] ?? barber['id_empleado'] ?? barber['id_usuario'] ?? barber['id'])?.toString();
-          final isSelected = selectedId != null && selectedId == bId;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            elevation: isSelected ? 3 : 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-              side: BorderSide(
-                color: isSelected ? AppTheme.primary : Colors.transparent,
-                width: 2,
+        if (_barbersList.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text('Cargando barberos disponibles...', style: TextStyle(color: Colors.grey)),
+          )
+        else
+          ..._barbersList.map((barber) {
+            final barberMap = barber is Map<String, dynamic> ? barber : Map<String, dynamic>.from(barber as Map);
+            final selectedId = (_selectedBarberMap?['id_barbero'] ?? _selectedBarberMap?['id_empleado'] ?? _selectedBarberMap?['id_usuario'] ?? _selectedBarberMap?['id'])?.toString();
+            final bId = (barberMap['id_barbero'] ?? barberMap['id_empleado'] ?? barberMap['id_usuario'] ?? barberMap['id'])?.toString();
+            final isSelected = selectedId != null && selectedId == bId;
+            final barberName = _getBarberDisplayName(barberMap);
+            final initial = barberName.isNotEmpty ? barberName[0].toUpperCase() : 'B';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              elevation: isSelected ? 3 : 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(
+                  color: isSelected ? AppTheme.primary : Colors.transparent,
+                  width: 2,
+                ),
               ),
-            ),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AppTheme.primary.withOpacity(0.2),
-                child: Text(
-                  (barber['nombre'] ?? 'B')[0],
-                  style: const TextStyle(
-                    color: AppTheme.primary,
-                    fontWeight: FontWeight.bold,
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppTheme.primary.withOpacity(0.2),
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-              title: Text(
-                barber['nombre'] ?? 'Sin nombre',
-                style: TextStyle(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                title: Text(
+                  barberName,
+                  style: TextStyle(
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
                 ),
+                subtitle: Text(barberMap['email'] ?? 'Barbero profesional'),
+                trailing: isSelected
+                    ? const Icon(Icons.check_circle, color: AppTheme.primary)
+                    : null,
+                onTap: () {
+                  setState(() {
+                    _selectedBarberMap = barberMap;
+                    _selectedTimeStr = null; // Reset time when barber changes
+                  });
+                },
               ),
-              subtitle: const Text('Barbero profesional'),
-              trailing: isSelected
-                  ? const Icon(Icons.check_circle, color: AppTheme.primary)
-                  : null,
-              onTap: () {
-                setState(() {
-                  _selectedBarberMap = barber;
-                  _selectedTimeStr = null; // Reset time when barber changes
-                });
-              },
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
 
         const SizedBox(height: 24),
 
@@ -587,38 +867,61 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        _selectedBarberMap == null 
-            ? const Text('Por favor, selecciona un barbero primero.', style: TextStyle(color: Colors.grey))
-            : filteredTimes.isEmpty
-                ? const Text('No hay horarios disponibles para este barbero en la fecha seleccionada.', style: TextStyle(color: Colors.redAccent))
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: filteredTimes.map((time) {
-                      final isSelected = _selectedTimeStr == time;
-                      return ChoiceChip(
-                        label: Text(time),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _selectedTimeStr = time;
-                            });
-                          }
-                        },
-                        selectedColor: AppTheme.primary,
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black87,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      );
-                    }).toList(),
-                  ),
+        if (_selectedBarberMap == null)
+          const Text('Por favor, selecciona un barbero primero.', style: TextStyle(color: Colors.grey))
+        else if (filteredTimes.isEmpty)
+          const Text('No hay horarios disponibles para este barbero en la fecha seleccionada.', style: TextStyle(color: Colors.redAccent))
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: filteredTimes.map((time) {
+              final isSelected = _selectedTimeStr == time;
+              return ChoiceChip(
+                label: Text(time),
+                selected: isSelected,
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() {
+                      _selectedTimeStr = time;
+                    });
+                  }
+                },
+                selectedColor: AppTheme.primary,
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              );
+            }).toList(),
+          ),
       ],
     );
   }
 
   Widget _buildConfirmation() {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final currentUser = auth.user;
+
+    final selectedClient = _clients.firstWhere(
+      (c) => (c['id_cliente']?.toString() == _selectedClientId?.toString()) ||
+             (c['id_usuario']?.toString() == _selectedClientId?.toString()),
+      orElse: () => null,
+    );
+
+    final clientName = selectedClient?['nombre_final'] ??
+        selectedClient?['nombre'] ??
+        selectedClient?['name'] ??
+        selectedClient?['nombre_completo'] ??
+        currentUser?.name ??
+        'Cliente General';
+
+    final serviceName = _selectedServiceMap?['nombre'] ?? 'Servicio no seleccionado';
+    final price = _selectedServiceMap?['precio_neto'] ?? 0;
+    final barberName = _getBarberDisplayName(_selectedBarberMap);
+    final dateStr = '${_selectedDay.day.toString().padLeft(2, '0')}/${_selectedDay.month.toString().padLeft(2, '0')}/${_selectedDay.year}';
+    final timeStr = _selectedTimeStr ?? 'Hora no seleccionada';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -634,43 +937,39 @@ class _BookingScreenState extends State<BookingScreen> {
         _buildSummaryItem(
           icon: Icons.person,
           title: 'Cliente',
-          value: (() {
-            final selectedClient = _clients.firstWhere((c) => c['id_cliente'] == _selectedClientId, orElse: () => null);
-            return selectedClient?['nombre_final'] ?? selectedClient?['nombre_completo'] ?? 'Cliente General';
-          })(),
+          value: clientName,
         ),
 
         _buildSummaryItem(
           icon: Icons.content_cut,
           title: 'Servicio',
-          value: _selectedServiceMap?['nombre'] ?? '',
+          value: serviceName,
         ),
 
         _buildSummaryItem(
           icon: Icons.calendar_today,
           title: 'Fecha',
-          value: '${_selectedDay.day}/${_selectedDay.month}/${_selectedDay.year}',
+          value: dateStr,
         ),
 
         _buildSummaryItem(
           icon: Icons.access_time,
           title: 'Hora',
-          value: _selectedTimeStr ?? '',
+          value: timeStr,
         ),
 
         _buildSummaryItem(
           icon: Icons.person_outline,
           title: 'Barbero',
-          value: _selectedBarberMap?['nombre'] ?? '',
+          value: barberName,
         ),
 
         _buildSummaryItem(
           icon: Icons.attach_money,
-          title: 'Precio',
-          value: '\$${_selectedServiceMap?['precio_neto'] ?? 0}',
+          title: 'Precio Total',
+          value: '\$$price',
           isLast: true,
         ),
-
       ],
     );
   }
@@ -822,12 +1121,12 @@ class _BookingScreenState extends State<BookingScreen> {
 
     setState(() => _isLoading = true);
     
-    final int clientId = (selectedClient['id_cliente'] ?? _selectedClientId ?? 1) as int;
-    final int barberId = (_selectedBarberMap!['id_barbero'] ?? _selectedBarberMap!['id_usuario']) as int;
-    final int serviceId = _selectedServiceMap!['id_servicio'] as int;
+    final int clientId = int.tryParse((selectedClient['id_cliente'] ?? _selectedClientId ?? 1).toString()) ?? 1;
+    final int barberId = int.tryParse((_selectedBarberMap!['id_barbero'] ?? _selectedBarberMap!['id_usuario'] ?? _selectedBarberMap!['id_empleado'] ?? 1).toString()) ?? 1;
+    final int serviceId = int.tryParse((_selectedServiceMap!['id_servicio'] ?? _selectedServiceMap!['id'] ?? 1).toString()) ?? 1;
     
     final dateStr = "${_selectedDay.year}-${_selectedDay.month.toString().padLeft(2, '0')}-${_selectedDay.day.toString().padLeft(2, '0')}";
-    final duration = _selectedServiceMap!['duracion_minutos'] ?? 30;
+    final duration = int.tryParse((_selectedServiceMap!['duracion_minutos'] ?? 30).toString()) ?? 30;
     final endTimeStr = calculateHoraFin(_selectedTimeStr!, duration);
     
     final payload = {
@@ -846,87 +1145,57 @@ class _BookingScreenState extends State<BookingScreen> {
     try {
       final success = await _appointmentService.create(payload);
       if (success && mounted) {
+        try {
+          Provider.of<BarberAppointmentProvider>(context, listen: false).loadAppointments();
+        } catch (_) {}
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 28),
-                SizedBox(width: 12),
-                Text('¡Reserva Confirmada!'),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Tu cita ha sido reservada exitosamente en el sistema.'),
-                const SizedBox(height: 16),
-                Text(
-                  'Detalles:',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text('Cliente: ${selectedClient['nombre_final'] ?? selectedClient['nombre'] ?? 'Cliente'}'),
-                Text('Servicio: ${_selectedServiceMap!['nombre']}'),
-                Text('Fecha: $dateStr'),
-                Text('Hora: $_selectedTimeStr'),
-                Text('Barbero: ${_selectedBarberMap!['nombre']}'),
-              ],
-            ),
-            actions: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.chat, color: Colors.white),
-                label: const Text('Enviar por WhatsApp al Barbero'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366),
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () async {
-                  final String barberPhone = (_selectedBarberMap!['telefono'] ?? _selectedBarberMap!['phone'] ?? '').toString();
-                  final String barberName = (_selectedBarberMap!['nombre'] ?? 'Barbero').toString();
-                  final String clientName = (selectedClient['nombre_final'] ?? selectedClient['nombre'] ?? 'Cliente').toString();
-                  final String clientPhone = (selectedClient['telefono_final'] ?? selectedClient['telefono'] ?? 'N/A').toString();
-                  final String serviceName = (_selectedServiceMap!['nombre'] ?? 'Servicio').toString();
+          builder: (context) => BookingConfirmationDialog(
+            clientName: (selectedClient['nombre_final'] ?? selectedClient['nombre'] ?? 'Cliente').toString(),
+            serviceName: (_selectedServiceMap!['nombre'] ?? 'Servicio').toString(),
+            dateStr: dateStr,
+            timeStr: _selectedTimeStr!,
+            barberName: _getBarberDisplayName(_selectedBarberMap),
+            onSendWhatsApp: () async {
+              final String barberPhone = (_selectedBarberMap!['telefono'] ?? _selectedBarberMap!['phone'] ?? '').toString();
+              final String barberName = _getBarberDisplayName(_selectedBarberMap);
+              final String clientName = (selectedClient['nombre_final'] ?? selectedClient['nombre'] ?? 'Cliente').toString();
+              final String clientPhone = (selectedClient['telefono_final'] ?? selectedClient['telefono'] ?? 'N/A').toString();
+              final String serviceName = (_selectedServiceMap!['nombre'] ?? 'Servicio').toString();
 
-                  final message = WhatsAppHelper.buildNewAppointmentBarberMessage(
-                    barberName: barberName,
-                    clientName: clientName,
-                    clientPhone: clientPhone,
-                    serviceName: serviceName,
-                    dateStr: dateStr,
-                    timeStr: _selectedTimeStr!,
-                    endTimeStr: endTimeStr,
-                  );
+              final message = WhatsAppHelper.buildNewAppointmentBarberMessage(
+                barberName: barberName,
+                clientName: clientName,
+                clientPhone: clientPhone,
+                serviceName: serviceName,
+                dateStr: dateStr,
+                timeStr: _selectedTimeStr!,
+                endTimeStr: endTimeStr,
+              );
 
-                  await WhatsAppHelper.openWhatsApp(
-                    phone: barberPhone,
-                    message: message,
-                    context: context,
-                  );
-                },
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Cerrar diálogo
-                  
-                  // Reset wizard steps
-                  setState(() {
-                    _currentStep = 0;
-                    _selectedServiceMap = null;
-                    _selectedBarberMap = null;
-                    _selectedTimeStr = null;
-                  });
+              await WhatsAppHelper.openWhatsApp(
+                phone: barberPhone,
+                message: message,
+                context: context,
+              );
+            },
+            onClose: () {
+              Navigator.pop(context); // Cerrar diálogo
+              
+              // Reset wizard steps
+              setState(() {
+                _currentStep = 0;
+                _selectedServiceMap = null;
+                _selectedBarberMap = null;
+                _selectedTimeStr = null;
+              });
 
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context); // Regresar
-                  } else {
-                    context.go('/client/home');
-                  }
-                },
-                child: const Text('Cerrar'),
-              ),
-            ],
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context); // Regresar
+              } else {
+                context.go('/client/home');
+              }
+            },
           ),
         );
       } else {

@@ -8,6 +8,7 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_input.dart';
 import '../../core/app_theme.dart';
 import '../../models/user.dart';
+import '../../services/update_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,14 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppVersionChecker.checkForUpdates(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

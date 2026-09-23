@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../widgets/profile_tab_widget.dart';
+import '../../services/update_service.dart';
 import 'admin_dashboard_tab.dart';
 import 'manage_users_screen.dart';
 import 'manage_services_screen.dart';
@@ -28,6 +29,14 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       primaryColor: AppTheme.primary,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppVersionChecker.checkForUpdates(context);
+    });
+  }
 
   /// Maneja el cambio de pestaña
   void _onItemTapped(int index) {

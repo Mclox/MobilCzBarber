@@ -1,7 +1,7 @@
 class Api {
   // URL base del backend
   // Cambia esto por tu IP o dominio
-  static const String baseUrl = "http://localhost:4000/api";
+  static const String baseUrl = "https://barbersite-backend.onrender.com/api";
 
   // AUTH
   static const String login = "$baseUrl/auth/login";
@@ -47,4 +47,7 @@ class Api {
   static const String dashboardSales = "$baseUrl/dashboard/sales";
   static const String dashboardAppointments = "$baseUrl/dashboard/appointments";
   static const String dashboardTopServices = "$baseUrl/dashboard/topservices";
+
+  // APP VERSION
+  static const String latestVersion = "$baseUrl/app-version/latest";
 }

@@ -332,17 +332,62 @@ class _UserFormState extends State<_UserForm> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: documentType,
-                decoration: const InputDecoration(
+                isExpanded: true,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.darkText,
+                ),
+                decoration: InputDecoration(
                   labelText: "Tipo de Documento",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.badge_outlined),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  labelStyle: const TextStyle(
+                    color: AppTheme.lightText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.badge_outlined, color: AppTheme.primary),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: AppTheme.primary,
+                      width: 2,
+                    ),
+                  ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: "CC", child: Text("Cédula de Ciudadanía (CC)")),
-                  DropdownMenuItem(value: "CE", child: Text("Cédula de Extranjería (CE)")),
-                  DropdownMenuItem(value: "NIT", child: Text("NIT")),
-                  DropdownMenuItem(value: "PP", child: Text("Pasaporte (PP)")),
+                  DropdownMenuItem(
+                    value: "CC",
+                    child: Text(
+                      "Cédula de Ciudadanía (CC)",
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: "CE",
+                    child: Text(
+                      "Cédula de Extranjería (CE)",
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: "NIT",
+                    child: Text(
+                      "NIT",
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: "PP",
+                    child: Text(
+                      "Pasaporte (PP)",
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
                 onChanged: (value) => setState(() => documentType = value!),
               ),
@@ -382,15 +427,42 @@ class _UserFormState extends State<_UserForm> {
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: state,
-                decoration: const InputDecoration(
+                isExpanded: true,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.darkText,
+                ),
+                decoration: InputDecoration(
                   labelText: "Estado",
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.check_circle_outline),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  labelStyle: const TextStyle(
+                    color: AppTheme.lightText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.check_circle_outline, color: AppTheme.primary),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: AppTheme.primary,
+                      width: 2,
+                    ),
+                  ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: "Activo", child: Text("Activo")),
-                  DropdownMenuItem(value: "Inactivo", child: Text("Inactivo")),
+                  DropdownMenuItem(
+                    value: "Activo",
+                    child: Text("Activo", overflow: TextOverflow.ellipsis),
+                  ),
+                  DropdownMenuItem(
+                    value: "Inactivo",
+                    child: Text("Inactivo", overflow: TextOverflow.ellipsis),
+                  ),
                 ],
                 onChanged: (value) => setState(() => state = value!),
               ),
@@ -399,16 +471,37 @@ class _UserFormState extends State<_UserForm> {
                   ? const Center(child: CircularProgressIndicator())
                   : DropdownButtonFormField<int>(
                       value: roleId,
-                      decoration: const InputDecoration(
+                      isExpanded: true,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.darkText,
+                      ),
+                      decoration: InputDecoration(
                         labelText: "Rol Asignado",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.admin_panel_settings_outlined),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        labelStyle: const TextStyle(
+                          color: AppTheme.lightText,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        prefixIcon: const Icon(Icons.admin_panel_settings_outlined, color: AppTheme.primary),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.black12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: AppTheme.primary,
+                            width: 2,
+                          ),
+                        ),
                       ),
                       items: roleProvider.roles.map((r) {
                         return DropdownMenuItem<int>(
                           value: r.id,
-                          child: Text(r.name),
+                          child: Text(r.name, overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
                       onChanged: (value) {

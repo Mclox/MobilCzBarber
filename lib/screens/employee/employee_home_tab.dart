@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_theme.dart';
+import '../../core/api.dart';
 
 import '../../providers/barber_appointment_provider.dart';
 import '../../widgets/profile_tab_widget.dart';
@@ -77,15 +79,7 @@ class _EmployeeHomeTabState extends State<EmployeeHomeTab> {
               // ENCABEZADO
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 35,
-                    backgroundColor: AppTheme.primary.withOpacity(0.2),
-                    child: Icon(
-                      Icons.person, 
-                      size: 40, 
-                      color: AppTheme.primary,
-                    ),
-                  ),
+                  _buildAvatarWidget(authProvider.user?.avatarUrl, 35),
                   const SizedBox(width: 15),
                   Expanded(
                     child: Column(
@@ -191,6 +185,37 @@ class _EmployeeHomeTabState extends State<EmployeeHomeTab> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 🖼️ Construir avatar del usuario (Base64 o URL de red)
+  Widget _buildAvatarWidget(String? avatarUrl, double radius) {
+    ImageProvider? imageProvider;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      if (avatarUrl.startsWith('data:image')) {
+        try {
+          final base64Str = avatarUrl.split(',').last;
+          imageProvider = MemoryImage(base64Decode(base64Str));
+        } catch (_) {
+          imageProvider = null;
+        }
+      } else if (avatarUrl.startsWith('http')) {
+        imageProvider = NetworkImage(avatarUrl);
+      } else {
+        String cleanPath = avatarUrl.replaceAll('\\', '/');
+        if (cleanPath.startsWith('/')) cleanPath = cleanPath.substring(1);
+        final serverUrl = Api.baseUrl.replaceAll('/api', '');
+        imageProvider = NetworkImage('$serverUrl/$cleanPath');
+      }
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: AppTheme.primary.withOpacity(0.15),
+      backgroundImage: imageProvider,
+      child: imageProvider == null
+          ? Icon(Icons.person, size: radius * 1.1, color: AppTheme.primary)
+          : null,
     );
   }
 

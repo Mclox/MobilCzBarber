@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/profile_tab_widget.dart';
 import '../../core/app_theme.dart';
+import '../../services/update_service.dart';
 import 'employee_home_tab.dart';
 import 'employee_agenda_screen.dart';
 import 'availability_screen.dart';
@@ -10,10 +11,10 @@ class EmployeeMainScreen extends StatefulWidget {
   const EmployeeMainScreen({super.key});
 
   @override
-  State<EmployeeMainScreen> createState() => _EmployeeMainScreenState();
+  State<EmployeeMainScreen> createState() => EmployeeMainScreenState();
 }
 
-class _EmployeeMainScreenState extends State<EmployeeMainScreen> {
+class EmployeeMainScreenState extends State<EmployeeMainScreen> {
   /// Índice de la pestaña activa (0-3)
   int _currentIndex = 0;
 
@@ -31,6 +32,10 @@ class _EmployeeMainScreenState extends State<EmployeeMainScreen> {
         primaryColor: AppTheme.primary,
       ),
     ];
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppVersionChecker.checkForUpdates(context);
+    });
   }
 
   /// Maneja el cambio de pestaña
@@ -38,6 +43,11 @@ class _EmployeeMainScreenState extends State<EmployeeMainScreen> {
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  /// Cambia de pestaña públicamente
+  void selectTab(int index) {
+    _onItemTapped(index);
   }
 
   @override

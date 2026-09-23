@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../providers/product_provider.dart';
 import '../../providers/service_provider.dart';
 import '../../services/notification_service.dart';
 import '../../core/app_theme.dart';
+import '../../core/api.dart';
 import '../settings_screen.dart';
 import '../../widgets/profile_tab_widget.dart';
 
@@ -366,15 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Colors.white,
-                          child: Icon(
-                            Icons.person,
-                            size: 35,
-                            color: AppTheme.primary,
-                          ),
-                        ),
+                        _buildAvatarWidget(user?.avatarUrl, 30),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(
@@ -636,6 +630,38 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 🖼️ Construir avatar del usuario (Base64 o URL de red)
+  Widget _buildAvatarWidget(String? avatarUrl, double radius) {
+    ImageProvider? imageProvider;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      if (avatarUrl.startsWith('data:image')) {
+        try {
+          final base64Str = avatarUrl.split(',').last;
+          imageProvider = MemoryImage(base64Decode(base64Str));
+        } catch (_) {
+          imageProvider = null;
+        }
+      } else if (avatarUrl.startsWith('http')) {
+        imageProvider = NetworkImage(avatarUrl);
+      } else {
+        // Ruta relativa: construir URL completa usando el servidor base
+        String cleanPath = avatarUrl.replaceAll('\\', '/');
+        if (cleanPath.startsWith('/')) cleanPath = cleanPath.substring(1);
+        final serverUrl = Api.baseUrl.replaceAll('/api', '');
+        imageProvider = NetworkImage('$serverUrl/$cleanPath');
+      }
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.white,
+      backgroundImage: imageProvider,
+      child: imageProvider == null
+          ? Icon(Icons.person, size: radius * 1.1, color: AppTheme.primary)
+          : null,
     );
   }
 

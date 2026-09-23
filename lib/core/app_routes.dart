@@ -24,6 +24,7 @@ import '../screens/admin/create_sale_screen.dart';
 import '../screens/main_screen.dart';
 import '../screens/client/catalog_screen.dart';
 import '../screens/client/book_appointment_screen.dart';
+import '../screens/client/booking_screen.dart';
 
 // Employee Screens
 import '../screens/employee/employee_main_screen.dart';
@@ -91,7 +92,7 @@ final GoRouter appRouter = GoRouter(
     /// CLIENT
     GoRoute(path: "/client/home", builder: (_, __) => const MainScreen()),
     GoRoute(path: "/client/catalog", builder: (_, __) => const CatalogScreen()),
-    GoRoute(path: "/client/book", builder: (_, __) => const BookAppointmentScreen()),
+    GoRoute(path: "/client/book", builder: (_, __) => const BookingScreen()),
 
     /// EMPLOYEE
     GoRoute(path: "/employee/home", builder: (_, __) => const EmployeeMainScreen()),

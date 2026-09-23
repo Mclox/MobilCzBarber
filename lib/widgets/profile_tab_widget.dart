@@ -79,8 +79,10 @@ class _ProfileTabWidgetState extends State<ProfileTabWidget> {
         final data = jsonDecode(response.body);
         String? versionStr;
         if (data is Map) {
-          versionStr = data['version']?.toString() ??
+          versionStr = data['version_name']?.toString() ??
+              data['version']?.toString() ??
               data['version_number']?.toString() ??
+              data['data']?['version_name']?.toString() ??
               data['data']?['version']?.toString();
         } else if (data is String) {
           versionStr = data;

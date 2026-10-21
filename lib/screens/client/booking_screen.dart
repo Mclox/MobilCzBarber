@@ -178,18 +178,45 @@ class _BookingScreenState extends State<BookingScreen> {
           }
         } catch (_) {}
       } else {
-        if (slotStart < 8 * 60 || slotStart >= 18 * 60) {
+        if (slotStart < 9 * 60 || slotStart >= 21 * 60) {
           return false;
         }
       }
       
-      if (date.weekday == DateTime.sunday) {
-        return false;
-      }
+      // Verificar si el barbero labora este día según sus días configurados
+        if (barber['dias_laborales'] != null && barber['dias_laborales'] is List) {
+          final List<dynamic> daysList = barber['dias_laborales'];
+          int dayOfWeek = date.weekday % 7; // DateTime.sunday = 7 -> 0
+          final dayMatch = daysList.firstWhere(
+            (d) => d is Map && (d['dayId'] == dayOfWeek || d['dayId'].toString() == dayOfWeek.toString()),
+            orElse: () => null,
+          );
+          if (dayMatch != null && dayMatch['activo'] == false) {
+            return false;
+          }
+        } else if (date.weekday == DateTime.sunday) {
+          return false;
+        }
     }
-    // --- FIN VALIDACIÓN ---
-    
-    final duration = service['duracion_minutos'] ?? 30;
+    // Verificar bloqueos de tiempo configurados por el barbero
+        if (barber['bloqueos'] != null && barber['bloqueos'] is List) {
+          for (final b in barber['bloqueos']) {
+            if (b is Map && b['activo'] == true && b['hora_inicio'] != null && b['hora_fin'] != null) {
+              final bStartParts = b['hora_inicio'].toString().split(':');
+              final bEndParts = b['hora_fin'].toString().split(':');
+              if (bStartParts.length >= 2 && bEndParts.length >= 2) {
+                final bStart = int.parse(bStartParts[0]) * 60 + int.parse(bStartParts[1]);
+                final bEnd = int.parse(bEndParts[0]) * 60 + int.parse(bEndParts[1]);
+                if (slotStart < bEnd && (slotStart + (service['duracion_minutos'] ?? 30)) > bStart) {
+                  return false;
+                }
+              }
+            }
+          }
+        }
+        // --- FIN VALIDACIÓN ---
+
+        final duration = service['duracion_minutos'] ?? 30;
     final slotEnd = slotStart + duration;
     
     for (final busy in busySlots) {

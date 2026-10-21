@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "barbers_app",
-      "version": "0.1.21+22",
+      "version": "0.1.22+23",
       "dependencies": [
         "cupertino_icons",
         "dio",

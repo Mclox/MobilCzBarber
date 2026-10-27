@@ -19,6 +19,16 @@ class EmployeeAgendaScreen extends StatefulWidget {
 }
 
 class _EmployeeAgendaScreenState extends State<EmployeeAgendaScreen> {
+
+  // Formatea fecha en YYYY-MM-DD sin alterar por zona horaria
+  String _formatCitaFechaClean(dynamic raw) {
+    if (raw == null) return '';
+    final str = raw.toString().trim();
+    if (str.contains('T')) return str.split('T')[0];
+    if (str.contains(' ')) return str.split(' ')[0];
+    return str;
+  }
+
   DateTime selectedDate = DateTime.now();
 
   @override
